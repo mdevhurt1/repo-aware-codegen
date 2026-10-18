@@ -1,0 +1,15 @@
+# Milestone 1 preliminary run: one table + one figure.
+run_name: m1_n512
+model:
+  name: deepseek-ai/deepseek-coder-1.3b-base
+  quant: 4bit
+data:
+  dataset: tianyang/repobench_python_v1.1
+  split: cross_file_first
+  sample: data/samples/cff_500_seed0.json
+methods: [none, bm25_long, bm25_short, oracle]
+budgets: [512]
+generation:
+  max_new_tokens: 64
+  stop_at_newline: true
+output_dir: outputs
