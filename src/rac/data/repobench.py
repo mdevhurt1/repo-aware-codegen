@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+import random
 
 from rac.types import Example
 
@@ -23,14 +25,16 @@ def load_examples(split: str = "cross_file_first", revision: str | None = None) 
 
 def sample_ids(examples: list[Example], n: int = 500, seed: int = 0) -> list[str]:
     """Seeded random sample of example IDs."""
-    raise NotImplementedError("seeded sample")
+    return random.Random(seed).sample([ex.example_id for ex in examples], n)
 
 
 def save_sample(ids: list[str], path: str | Path) -> None:
     """Write sample IDs to data/samples/<name>.json."""
-    raise NotImplementedError("save sample")
+    with open(path, "w") as f:
+        json.dump(ids, f)
 
 
 def load_sample(path: str | Path) -> list[str]:
     """Read sample IDs written by save_sample."""
-    raise NotImplementedError("load sample")
+    with open(path, "r") as f:
+        return json.load(f)
