@@ -5,6 +5,7 @@ model:
   quant: 4bit
 data:
   dataset: tianyang/repobench_python_v1.1
+  revision: "8a7cf0c8942cc1aa066bf261839650ac55a2ff79"
   split: cross_file_first
   sample: data/samples/cff_500_seed0.json
 methods: [none, bm25_long, bm25_short, oracle]
