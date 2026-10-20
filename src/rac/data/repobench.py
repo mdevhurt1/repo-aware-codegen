@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import random
+from pathlib import Path
 
 from rac.types import Example
 
@@ -36,5 +36,5 @@ def save_sample(ids: list[str], path: str | Path) -> None:
 
 def load_sample(path: str | Path) -> list[str]:
     """Read sample IDs written by save_sample."""
-    with open(path, "r") as f:
+    with open(path) as f:
         return json.load(f)
