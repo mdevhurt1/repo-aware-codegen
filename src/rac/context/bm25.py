@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from rac.types import Example
-from rac.context import tokenize
-
 # Importing open-source BM25 package
 # PyPi Source: https://pypi.org/project/BM25/
 # GitHub Repo: https://github.com/xhluca/bm25s/tree/main
 import bm25s
+
+from rac.context import tokenize
+from rac.types import Example
 
 QUERY_LINES = 5
 
