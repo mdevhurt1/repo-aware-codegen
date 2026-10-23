@@ -2,14 +2,13 @@
 
 Run: python -m pytest test_bm25.py -v -s
 """
-import json
 import math
 from pathlib import Path
 
 import pytest
 
-from rac.types import Example, Snippet
 from rac.context import bm25, tokenize
+from rac.types import Example
 
 FIXTURE = Path(__file__).parent / "fixtures" / "repobench_tiny.jsonl"
 
@@ -117,7 +116,7 @@ def test_real_bm25_ranks_dataset_snippets(examples, record_index):
     assert len(ranked) == len(ex.context)
     assert sorted(idx for idx, _ in ranked) == list(range(len(ex.context)))
     assert all(isinstance(score, float) and math.isfinite(score) for _, score in ranked)
-    assert all(a[1] >= b[1] for a, b in zip(ranked, ranked[1:]))
+    assert all(a[1] >= b[1] for a, b in zip(ranked, ranked[1:], strict=False))
     assert ranked == bm25.rank(ex, units)
 
     gold_rank = next(i for i, (idx, _) in enumerate(ranked, 1) if idx == ex.gold_snippet_index)
