@@ -19,6 +19,7 @@ dependencies = [
     "numpy",
     "scipy",
     "pyyaml",
+    "BM25"
 ]
 
 [project.optional-dependencies]
