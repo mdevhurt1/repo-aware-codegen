@@ -81,7 +81,7 @@ sequenceDiagram
     loop each example x method x budget N
         Runner->>Ctx: build_context(example, method, N, tokenizer)
         Ctx-->>Runner: snippets (at most N tokens)
-        Runner->>Prompt: build_prompt(example, snippets)
+        Runner->>Prompt: build_prompt(example, context_text, tokenizer, max_new_tokens)
         Prompt-->>Runner: prompt
         Runner->>Model: generate(prompt)
         Model-->>Runner: completion, latency
