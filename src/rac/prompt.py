@@ -23,7 +23,7 @@ def build_prompt(
 
     prompt += example.cropped_code
 
-    tokens_used = count_tokens(prompt, tokenizer)
+    tokens_used = len(tokenizer(prompt, add_special_tokens=True)["input_ids"])
     if tokens_used + max_new_tokens > tokenizer.model_max_length:
         raise ValueError(
             f"Prompt {tokens_used} + {max_new_tokens} new tokens exceeds "
