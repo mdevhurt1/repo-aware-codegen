@@ -8,14 +8,23 @@ from rac.prompt import build_prompt
 
 
 class WordTokenizer:
-    """Test tokenizer: one token per whitespace-separated word, with a model window."""
+    """
+    Test tokenizer: one token per whitespace-separated word, with a model window.
+
+    With special tokens on it prepends a BOS token, as the DeepSeek tokenizer does, so the
+    prompt builder must count it: that is what the model will actually ingest.
+    """
+
+    BOS = -1
 
     def __init__(self, model_max_length=10_000):
         self.model_max_length = model_max_length
 
     def __call__(self, text, add_special_tokens=True):
-        assert add_special_tokens is False
-        return {"input_ids": list(range(len(text.split())))}
+        ids = list(range(len(text.split())))
+        if add_special_tokens:
+            ids = [self.BOS, *ids]
+        return {"input_ids": ids}
 
 
 @pytest.fixture
@@ -72,12 +81,23 @@ def test_fixture_examples_build(examples):
 
 def test_prompt_plus_generation_must_fit_the_window(example):
     context = "a b c d e f"
-    words = len(build_prompt(example, context, WordTokenizer()).split())
-    window = WordTokenizer(model_max_length=words + 4)
+    prompt = build_prompt(example, context, WordTokenizer())
+    used = len(WordTokenizer()(prompt)["input_ids"])
+    window = WordTokenizer(model_max_length=used + 4)
 
     assert build_prompt(example, context, window, max_new_tokens=4)
     with pytest.raises(ValueError):
         build_prompt(example, context, window, max_new_tokens=5)
+
+
+def test_special_tokens_count_against_the_window(example):
+    # Words alone would fit; the BOS token the model prepends pushes it over by one.
+    context = "a b c d e f"
+    words = len(build_prompt(example, context, WordTokenizer()).split())
+    window = WordTokenizer(model_max_length=words + 4)
+
+    with pytest.raises(ValueError, match="exceeds"):
+        build_prompt(example, context, window, max_new_tokens=4)
 
 
 def test_default_reserves_room_for_generation(example):

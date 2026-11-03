@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from rac.context import count_tokens
 from rac.types import Example
 
 
@@ -23,6 +22,7 @@ def build_prompt(
 
     prompt += example.cropped_code
 
+    # Count tokens used with special tokens to not skip the BOS token.
     tokens_used = len(tokenizer(prompt, add_special_tokens=True)["input_ids"])
     if tokens_used + max_new_tokens > tokenizer.model_max_length:
         raise ValueError(
