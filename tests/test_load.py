@@ -86,12 +86,106 @@ def test_newline_in_prompt_does_not_stop():
     assert model.steps == 3
 
 
-def test_leading_newline_gives_empty_line():
-    model = ScriptedModel("\nabc")
+def test_blank_lines_are_skipped():
+    model = ScriptedModel("\n\nabc\nd")
 
     line, _ = generate(model, CharTokenizer(), "p")
 
+    assert line == "abc"
+    assert model.steps == 6
+
+
+def test_comment_lines_are_skipped():
+    model = ScriptedModel("# todo\n    # more\nx = 1\ny = 2\n")
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+    assert model.steps == len("# todo\n    # more\nx = 1\n")
+
+
+def test_triple_double_quote_lines_are_skipped():
+    model = ScriptedModel('"""Docstring."""\n    """More."""\nx = 1\ny = 2\n')
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+    assert model.steps == len('"""Docstring."""\n    """More."""\nx = 1\n')
+
+
+def test_triple_single_quote_lines_are_skipped():
+    model = ScriptedModel("'''Docstring.'''\n    '''More.'''\nx = 1\ny = 2\n")
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+    assert model.steps == len("'''Docstring.'''\n    '''More.'''\nx = 1\n")
+
+
+def test_multiline_double_quote_block_is_skipped():
+    model = ScriptedModel('"""\n    Summary text.\n    """\nx = 1\ny = 2\n')
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+    assert model.steps == len('"""\n    Summary text.\n    """\nx = 1\n')
+
+
+def test_multiline_single_quote_block_is_skipped():
+    model = ScriptedModel("'''\n    Summary text.\n    '''\nx = 1\ny = 2\n")
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+    assert model.steps == len("'''\n    Summary text.\n    '''\nx = 1\n")
+
+
+def test_multiline_block_with_text_on_opening_line_is_skipped():
+    model = ScriptedModel('"""Summary.\n\n    More text.\n    """\nx = 1\n')
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+
+
+def test_multiline_block_after_comment_is_skipped():
+    model = ScriptedModel('# note\n"""\nbody\n"""\nx = 1\n')
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1"
+
+
+def test_unclosed_block_within_cap_gives_empty_line():
+    model = ScriptedModel('"""\nbody\nmore body\n')
+
+    line, _ = generate(model, CharTokenizer(), "p", max_new_tokens=12)
+
     assert line == ""
+
+
+def test_indented_code_line_keeps_indent():
+    model = ScriptedModel("\n    return 1\n")
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "    return 1"
+
+
+def test_only_comments_within_cap_gives_empty_line():
+    model = ScriptedModel("# a\n# b\n# c")
+
+    line, _ = generate(model, CharTokenizer(), "p", max_new_tokens=8)
+
+    assert line == ""
+
+
+def test_trailing_comment_on_code_line_is_code():
+    model = ScriptedModel("x = 1  # set x\ny\n")
+
+    line, _ = generate(model, CharTokenizer(), "p")
+
+    assert line == "x = 1  # set x"
 
 
 def test_max_new_tokens_caps_unterminated_line():
