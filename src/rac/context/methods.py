@@ -11,7 +11,6 @@ from typing import Any
 
 from rac.context import bm25
 from rac.context.fill import fill_to_cutoff
-from rac.context.tokenize import code_tokens
 from rac.types import Example
 
 
@@ -28,8 +27,7 @@ def bm25_long(example: Example, n: int, tokenizer: Any) -> str:
         return ""
 
     units = [candidate.snippet for candidate in example.context]
-    tokenized_units = [code_tokens(unit) for unit in units]
-    ranked = bm25.rank(example, tokenized_units)
+    ranked = bm25.rank(example, units)
     ranked_units = [units[index] for index, _score in ranked]
 
     return fill_to_cutoff(ranked_units, n, tokenizer)
