@@ -1,6 +1,7 @@
 """BM25 ranking over an example's own candidate snippets."""
 
 from __future__ import annotations
+
 from math import isfinite
 
 # Importing open-source rank_bm25 package
@@ -54,7 +55,9 @@ def rank(example: Example, units: list[str]) -> list[tuple[int, float]]:
     # Don't attempt to rank with empty tokenized snippet
     if not all(snippet_tokens):
         empty_indices = [i for i, tokens in enumerate(snippet_tokens) if not tokens]
-        raise ValueError(f"Snippet tokenization failed: found empty token lists at indices {empty_indices}")
+        raise ValueError(
+            f"Snippet tokenization failed: found empty token lists at indices {empty_indices}"
+        )
 
     corpus = snippet_tokens
 
@@ -71,7 +74,9 @@ def rank(example: Example, units: list[str]) -> list[tuple[int, float]]:
     # Verify that received scores are finite
     if not all(isfinite(score) for score in scores):
         invalid_indices = [i for i, score in enumerate(scores) if not isfinite(score)]
-        raise ValueError(f"Found non-finite BM25 scores at indices {invalid_indices}")
+        raise ValueError(
+            f"Found non-finite BM25 scores at indices {invalid_indices}"
+        )
 
     # Associate scores with their original snippet indexes
     results = [

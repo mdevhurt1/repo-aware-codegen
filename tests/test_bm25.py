@@ -3,8 +3,8 @@
 Run: python -m pytest test_bm25.py -v -s
 """
 import math
-from pathlib import Path
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -54,7 +54,7 @@ def test_rank_tokenizes_candidates_and_sorts_scores(example, monkeypatch):
         observed["texts"].append(text)
         if text == query:
             return expected_query_tokens
-        return {unit: tokens for unit, tokens in zip(units, expected_corpus)}[text]
+        return {unit: tokens for unit, tokens in zip(units, expected_corpus, strict=False)}[text]
 
     class FakeBM25Okapi:
         def __init__(self, corpus):
@@ -72,14 +72,16 @@ def test_rank_tokenizes_candidates_and_sorts_scores(example, monkeypatch):
 
 
 def test_rank_empty_candidates(example, monkeypatch):
-    monkeypatch.setattr(bm25, "BM25Okapi", lambda corpus: pytest.fail("BM25 should not be constructed"))
+    monkeypatch.setattr(bm25, "BM25Okapi", 
+                        lambda corpus: pytest.fail("BM25 should not be constructed"))
     with pytest.raises(ValueError, match="units must not be empty"):
         bm25.rank(example, [])
 
 
 def test_rank_empty_query(example, monkeypatch):
     monkeypatch.setattr(bm25.tokenize, "code_tokens", lambda text: [])
-    monkeypatch.setattr(bm25, "BM25Okapi", lambda corpus: pytest.fail("BM25 should not be constructed"))
+    monkeypatch.setattr(bm25, "BM25Okapi", 
+                        lambda corpus: pytest.fail("BM25 should not be constructed"))
     with pytest.raises(ValueError, match="Query tokenization failed"):
         bm25.rank(example, ["a", "b"])
 
@@ -126,7 +128,7 @@ def test_real_bm25_ranks_dataset_snippets(examples, record_index):
     assert len(ranked) == len(units)
     assert sorted(idx for idx, _ in ranked) == list(range(len(units)))
     assert all(isinstance(score, float) and math.isfinite(score) for _, score in ranked)
-    assert all(a[1] >= b[1] for a, b in zip(ranked, ranked[1:]))
+    assert all(a[1] >= b[1] for a, b in zip(ranked, ranked[1:], strict=False))
     assert ranked == bm25.rank(ex, units)
 
     gold_rank = next(i for i, (idx, _) in enumerate(ranked, 1)
