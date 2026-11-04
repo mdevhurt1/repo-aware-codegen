@@ -7,6 +7,26 @@ from typing import Any
 from rac.types import Example
 
 
-def build_prompt(example: Example, context_text: str, tokenizer: Any) -> str:
+def build_prompt(
+    example: Example, context_text: str, tokenizer: Any, max_new_tokens: int = 64
+) -> str:
     """Cross-file block (from build_context) + import statements + in-file code to the cursor."""
-    raise NotImplementedError("prompt builder")
+    prompt = ""
+    if context_text:
+        prompt += context_text
+        prompt += "\n\n"
+
+    if example.import_statement:
+        prompt += example.import_statement
+        prompt += "\n\n"
+
+    prompt += example.cropped_code
+
+    # Count tokens used with special tokens to not skip the BOS token.
+    tokens_used = len(tokenizer(prompt, add_special_tokens=True)["input_ids"])
+    if tokens_used + max_new_tokens > tokenizer.model_max_length:
+        raise ValueError(
+            f"Prompt {tokens_used} + {max_new_tokens} new tokens exceeds "
+            f"{tokenizer.model_max_length} ({example.example_id})"
+        )
+    return prompt
