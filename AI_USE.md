@@ -16,3 +16,5 @@ Log every such use here. Commits made with an AI assistant also carry a
 | 2026-10-29 | Kenneth | ChatGPT | Assisted with Unicode truncation fix, regression tests, and 27 real-tokenizer Unicode checks | `src/rac/context/fill.py`, `tests/test_fill.py` |
 | 2026-10-30 | Marcus | Claude Code (Claude Opus 5.5) | Wrote the `build_prompt` unit tests; reviewed the hand-written draft, suggesting the `max_new_tokens` reserve and the empty-imports guard | `tests/test_prompt.py`, `src/rac/prompt.py` |
 | 2026-11-03 | Marcus | Claude Code (Claude Fable 5.1) | Reviewed the `build-prompt` branch; updated the `build_prompt` tests based on the special character count decission and added a regression test | `tests/test_prompt.py` |
+| 2026-10-30 | Marcus | Claude Code (Claude Opus 5.5) | `exact_match` and `edit_similarity` checked against RepoBench's `evaluation/metrics.py` (whitespace-split EM, `fuzz.ratio` ES), with unit tests | `src/rac/eval/metrics.py`, `tests/test_metrics.py` |
+
