@@ -18,8 +18,7 @@ dependencies = [
     "rank_bm25",
     "numpy",
     "scipy",
-    "pyyaml",
-    "BM25"
+    "pyyaml"
 ]
 
 [project.optional-dependencies]
