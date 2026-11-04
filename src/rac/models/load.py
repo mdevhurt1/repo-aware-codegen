@@ -42,7 +42,7 @@ _BLOCK_QUOTES = ('"""', "'''")
 
 
 def _code_lines(text: str):
-    """Yield lines of text that are code: not blank, a # comment, or inside a triple-quoted block."""
+    """Yield the code lines of text: not blank, a # comment, or inside a triple-quoted block."""
     open_quote = None
     for line in text.split("\n"):
         stripped = line.strip()
