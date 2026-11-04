@@ -7,7 +7,7 @@ the file's import statements; only selection and encoding differ.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from rac.context.bm25 import rank
 from rac.context.fill import fill_to_cutoff
@@ -27,14 +27,10 @@ def bm25_long(example: Example, n: int, tokenizer: Any) -> str:
 def bm25_short(example: Example, n: int, tokenizer: Any) -> str:
     """First 10 lines of each candidate ranked by BM25, filled to cutoff."""
 
-    # Helper to get first 10 lines of a snippet
-    def first_10_lines(snippet: str) -> str:
-        lines = snippet.splitlines()
-        return "\n".join(lines[:10])
-
     # Generate a list of candidate snippet strings (from Example context)
+    # Using first 10 lines of each
     snippets: list[str] = [
-        first_10_lines(snippet_obj.snippet)
+        "\n".join(snippet_obj.snippet.splitlines()[:10])
         for snippet_obj in example.context
     ]
 
@@ -48,11 +44,57 @@ def bm25_short(example: Example, n: int, tokenizer: Any) -> str:
     return fill_to_cutoff(ranked_snippets, n, tokenizer)
 
 
-def oracle(example: Example, n: int, tokenizer: Any) -> str:
-    """Return the gold candidate snippet, truncated to the token budget."""
-    # NOTE: For now, just return the gold snippet
+def oracle(
+    example: Example,
+    n: int,
+    tokenizer: Any,
+    fallback: Literal["none", "bm25_long", "bm25_short"] = "none",
+) -> str:
+    """Ceiling: gold snippet first, then the method's own rule."""
 
-    # Get gold snippet (from Example context and gold snippet index)
+    # Get the full gold snippet (from Example context and gold snippet index)
     gold_snippet: str = example.context[example.gold_snippet_index].snippet
 
-    return fill_to_cutoff([gold_snippet], n, tokenizer)
+    # Preserve existing oracle behavior by default
+    if fallback == "none":
+        return fill_to_cutoff([gold_snippet], n, tokenizer)
+
+    # If different fallback rule provided, validate it
+    if fallback not in ("bm25_long", "bm25_short"):
+        raise ValueError(f"Unknown oracle fallback: {fallback}")
+
+    # Get remaining snippets (all but gold snippet)
+    remaining = [
+        snippet.snippet
+        for idx, snippet in enumerate(example.context)
+        if idx != example.gold_snippet_index
+    ]
+
+    # If no additional candidates, use default behavior
+    if not remaining:
+        return fill_to_cutoff([gold_snippet], n, tokenizer)
+
+    # Apply the selected fallback retrieval rule
+    # If bm25_short, shorten each candidate to first 10 lines
+    # Else (bm25_long), keep as-is
+    if fallback == "bm25_short":
+        remaining = [
+            "\n".join(snippet.splitlines()[:10])
+            for snippet in remaining
+        ]
+
+    # Rank the remaining candidates with BM25
+    ranking = rank(example, remaining)
+
+    # Order by rank
+    ranked_remaining = [
+        remaining[idx]
+        for idx, _score in ranking
+    ]
+
+    # Gold always first; fill remaining budget with ranked candidates
+    return fill_to_cutoff(
+        [gold_snippet, *ranked_remaining],
+        n,
+        tokenizer,
+    )
