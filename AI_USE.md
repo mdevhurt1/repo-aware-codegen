@@ -19,6 +19,7 @@ Log every such use here. Commits made with an AI assistant also carry a
 | 2026-10-30 | Marcus | Claude Code (Claude Opus 5.5) | Wrote the `build_prompt` unit tests; reviewed the hand-written draft, suggesting the `max_new_tokens` reserve and the empty-imports guard | `tests/test_prompt.py`, `src/rac/prompt.py` |
 | 2026-11-03 | Marcus | Claude Code (Claude Fable 5.1) | Reviewed the `build-prompt` branch; updated the `build_prompt` tests based on the special character count decission and added a regression test | `tests/test_prompt.py` |
 | 2026-10-30 | Marcus | Claude Code (Claude Opus 5.5) | `exact_match` and `edit_similarity` checked against RepoBench's `evaluation/metrics.py` (whitespace-split EM, `fuzz.ratio` ES), with unit tests | `src/rac/eval/metrics.py`, `tests/test_metrics.py` |
+| 2026-11-3 | Maria | ChatGPT | Reviewed bm25_short and oracle and recommended improvements. Assisted with new version of oracle with fallback retrieval rules. Generated unit and integration tests. | `src/rac/context/methods.py`, `tests/test_bm25_short.py`, `tests/test_oracle.py` |
 | 2026-11-03 | Maria | ChatGPT | Reviewed rank validation improvements. Assisted with modifying existing unit tests with new function signature. Generated unit tests for new validation error cases. | `src/rac/context/bm25.py`, `tests/test_bm25.py` |
 | 2026-11-04 | Marcus | Claude Code (Claude Fable 5.1) | Changed `rank` to score 19 examples (empty snippets, token-less queries) 0.0 instead of raising and upated tests | `src/rac/context/bm25.py`, `tests/test_bm25.py` |
 
