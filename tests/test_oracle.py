@@ -272,18 +272,18 @@ def test_oracle_fallback_does_not_mutate_example(example, fallback, monkeypatch)
 
 
 # Optional full pipeline: real BM25Okapi, code tokenizer and fill_to_cutoff.
-# @pytest.mark.parametrize("fallback", ["bm25_long", "bm25_short"])
-# def test_oracle_fallback_real_bm25_end_to_end(example, fallback):
-#     pytest.importorskip("rank_bm25")
-#     ex = _with_snippets(example, [
-#         "def apply_discount(total, code):\n    return total",
-#         "class Item:\n    price = 0",
-#         "def total(items):\n    return sum(item.price for item in items)",
-#     ], gold_index=1)
-#     tok = CharacterTokenizer()
-#     result = methods.oracle(ex, 1000, tok, fallback=fallback)
-#     assert result.startswith(ex.context[1].snippet)
-#     assert result.count(ex.context[1].snippet) == 1
-#     assert "apply_discount" in result
-#     assert "def total" in result
-#     assert len(result) <= 1000
+@pytest.mark.parametrize("fallback", ["bm25_long", "bm25_short"])
+def test_oracle_fallback_real_bm25_end_to_end(example, fallback):
+    pytest.importorskip("rank_bm25")
+    ex = _with_snippets(example, [
+        "def apply_discount(total, code):\n    return total",
+        "class Item:\n    price = 0",
+        "def total(items):\n    return sum(item.price for item in items)",
+    ], gold_index=1)
+    tok = CharacterTokenizer()
+    result = methods.oracle(ex, 1000, tok, fallback=fallback)
+    assert result.startswith(ex.context[1].snippet)
+    assert result.count(ex.context[1].snippet) == 1
+    assert "apply_discount" in result
+    assert "def total" in result
+    assert len(result) <= 1000
