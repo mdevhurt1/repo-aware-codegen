@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from rac.context import methods
+from rac.context.signatures import signature_map
 from rac.types import Example
 
 Builder = Callable[[Example, int, Any], str]
@@ -21,6 +22,7 @@ METHODS: dict[str, Builder] = {
     "bm25_long": methods.bm25_long,
     "bm25_short": methods.bm25_short,
     "oracle": methods.oracle,
+    "signatures": signature_map,
 }
 
 
