@@ -25,3 +25,4 @@ Log every such use here. Commits made with an AI assistant also carry a
 
 | 2026-10-30 | Marcus | Claude Code (Claude Opus 5.5) | Assisted with `load_model` (NF4 4-bit via bitsandbytes) and timed greedy `generate` that stops at the first newline; CPU unit tests with stand-in model and tokenizer | `src/rac/models/load.py`, `tests/test_load.py` |
 | 2026-11-03 | Marcus | Claude Code (Claude Opus 5.5) | Reviewed `load.py` changes; Assisted with block comment handling logic; Added unit tests for load.py newline and comment exclusions | `src/rac/models/load.py`, `tests/test_load.py` |
+| 2026-11-05 | Marcus | Claude Code (Claude Fable 5.1) | Reviewed the signature map (#32) against the 500-example sample; removed the duplicated import statements from the block and kept decorators and class attributes in the stubs, with tests | `src/rac/context/signatures.py`, `tests/test_signatures.py` |
