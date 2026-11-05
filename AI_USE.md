@@ -22,4 +22,4 @@ Log every such use here. Commits made with an AI assistant also carry a
 | 2026-11-3 | Maria | ChatGPT | Reviewed bm25_short and oracle and recommended improvements. Assisted with new version of oracle with fallback retrieval rules. Generated unit and integration tests. | `src/rac/context/methods.py`, `tests/test_bm25_short.py`, `tests/test_oracle.py` |
 | 2026-11-03 | Maria | ChatGPT | Reviewed rank validation improvements. Assisted with modifying existing unit tests with new function signature. Generated unit tests for new validation error cases. | `src/rac/context/bm25.py`, `tests/test_bm25.py` |
 | 2026-11-04 | Marcus | Claude Code (Claude Fable 5.1) | Changed `rank` to score 19 examples (empty snippets, token-less queries) 0.0 instead of raising and upated tests | `src/rac/context/bm25.py`, `tests/test_bm25.py` |
-
+| 2026-11-04 | Marcus | Claude Code (Claude Fable 5.1); CVPR 2017 author kit | Report scaffold: `report.tex` skeleton, `references.bib` (six entries, metadata from the arXiv abstract pages), build notes. `cvpr.sty` and `ieee.bst` are copied unmodified from the CVPR 2017 author kit | `docs/report/` |
