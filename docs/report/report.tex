@@ -1,0 +1,136 @@
+% ENPM703 Group 2 report, set in the CVPR 2017 author-kit style.
+% The preamble follows the kit's egpaper_final.tex; cvpr.sty and ieee.bst are
+% the kit's files, unmodified.
+%
+% Build:  latexmk -pdf report.tex
+
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{cvpr}
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+
+% Include other packages here, before hyperref.
+
+\graphicspath{{figures/}}
+
+% Visible placeholder. Delete each one as its section is written; a finished
+% report has no \todo left in it.
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+% If you comment hyperref and then uncomment it, delete report.aux before
+% re-running latex.
+\usepackage[breaklinks=true,bookmarks=false]{hyperref}
+
+% Final-copy layout: named authors, no review ruler. Comment this line out to
+% get the anonymous review layout with line numbers.
+\cvprfinalcopy
+
+\def\cvprPaperID{****} % printed in the review layout only
+
+\begin{document}
+
+%%%%%%%%% TITLE
+\title{Repository-Aware Code Completion under a Context Budget}
+
+\author{Marcus Hurt \quad Maria Vilanova Garcia \quad Kenneth Sutter \quad Aditi Thangavelu\\
+University of Maryland, College Park\\
+ENPM703, Group 2
+}
+
+\maketitle
+
+%%%%%%%%% ABSTRACT
+\begin{abstract}
+   \todo{One paragraph: the problem, what we varied, the data and model, and
+   the headline result.}
+\end{abstract}
+
+%%%%%%%%% BODY TEXT
+\section{Introduction}
+
+\todo{Why cross-file context matters for code completion, why the context
+budget forces a choice, and the two questions this project asks: what should
+fill a budget of $N$ tokens for a small frozen code model, and can a cheap
+classifier predict the best choice per completion.}
+
+%-------------------------------------------------------------------------
+\section{Related Work}
+
+RepoFuse~\cite{liang2024repofuse} compares signature context against
+retrieved-snippet context at matched truncation and reports that fusing the
+two beats either alone. Repoformer~\cite{wu2024repoformer} learns per example
+whether to retrieve at all, and ProCC~\cite{tan2024procc} uses a contextual
+bandit to pick a retrieval strategy per example.
+
+\todo{Expand, and position our two passes against these.}
+
+%-------------------------------------------------------------------------
+\section{Method}
+
+\todo{The context builder: the methods compared, how each fills the token
+budget, and the prompt layout. Then the pass 2 selector.}
+
+%-------------------------------------------------------------------------
+\section{Experiments}
+
+\todo{Setup: RepoBench~\cite{liu2023repobench} Python as the development set
+and CrossCodeEval~\cite{ding2023crosscodeeval} Python as the final test,
+DeepSeek-Coder-1.3B~\cite{guo2024deepseekcoder} in 4-bit, the budgets swept,
+the metrics (exact match, edit similarity, completion time), and the paired
+statistical tests.}
+
+\todo{Results and discussion.}
+
+% Figure and table patterns from the author kit. Size a figure as a multiple
+% of \linewidth, and keep its text readable in a printed copy.
+%
+% \begin{figure}[t]
+% \begin{center}
+%    \includegraphics[width=0.8\linewidth]{myfigure.pdf}
+% \end{center}
+%    \caption{One-column figure. Use figure* for a figure spanning both columns.}
+% \label{fig:example}
+% \end{figure}
+%
+% \begin{table}
+% \begin{center}
+% \begin{tabular}{|l|c|c|}
+% \hline
+% Method & EM & ES \\
+% \hline\hline
+% Method A & -- & -- \\
+% Method B & -- & -- \\
+% \hline
+% \end{tabular}
+% \end{center}
+% \caption{Results.}
+% \label{tab:example}
+% \end{table}
+
+%-------------------------------------------------------------------------
+\section{Conclusion}
+
+\todo{What the results say about each question, the limits of the study, and
+what we would do next.}
+
+%-------------------------------------------------------------------------
+\section*{Contributions}
+
+\todo{Who did what.}
+
+\section*{AI and external-code use}
+
+\todo{Summarize from AI\_USE.md in the repository; the course requires
+attribution for LLM-generated and externally sourced code and text.}
+
+{\small
+\bibliographystyle{ieee}
+\bibliography{references}
+}
+
+\end{document}
