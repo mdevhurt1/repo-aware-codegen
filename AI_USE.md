@@ -22,6 +22,7 @@ Log every such use here. Commits made with an AI assistant also carry a
 | 2026-11-3 | Maria | ChatGPT | Reviewed bm25_short and oracle and recommended improvements. Assisted with new version of oracle with fallback retrieval rules. Generated unit and integration tests. | `src/rac/context/methods.py`, `tests/test_bm25_short.py`, `tests/test_oracle.py` |
 | 2026-11-03 | Maria | ChatGPT | Reviewed rank validation improvements. Assisted with modifying existing unit tests with new function signature. Generated unit tests for new validation error cases. | `src/rac/context/bm25.py`, `tests/test_bm25.py` |
 | 2026-11-04 | Marcus | Claude Code (Claude Fable 5.1) | Changed `rank` to score 19 examples (empty snippets, token-less queries) 0.0 instead of raising and upated tests | `src/rac/context/bm25.py`, `tests/test_bm25.py` |
-
 | 2026-10-30 | Marcus | Claude Code (Claude Opus 5.5) | Assisted with `load_model` (NF4 4-bit via bitsandbytes) and timed greedy `generate` that stops at the first newline; CPU unit tests with stand-in model and tokenizer | `src/rac/models/load.py`, `tests/test_load.py` |
 | 2026-11-03 | Marcus | Claude Code (Claude Opus 5.5) | Reviewed `load.py` changes; Assisted with block comment handling logic; Added unit tests for load.py newline and comment exclusions | `src/rac/models/load.py`, `tests/test_load.py` |
+| 2026-11-04 | Marcus | Claude Code (Claude Opus 5.5) | Reviewed the hand-written `run`; wrote its unit tests | `src/rac/eval/runner.py`, `tests/test_runner.py` |
+| 2026-11-04 | Marcus | Claude Code (Claude Opus 5.5) | Rewrote the draft `fill_to_cutoff` speedup: binary search over the joined text with a window for token merges; added regression tests | `src/rac/context/fill.py`, `tests/test_fill.py` |
