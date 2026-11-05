@@ -8,7 +8,9 @@ from rac.types import Example
 
 
 def _stub(node, source: bytes, indent: str = "") -> str | None:
+    decorators = []
     if node.type == "decorated_definition":
+        decorators = [child for child in node.children if child.type == "decorator"]
         node = node.child_by_field_name("definition")
         if node is None:
             return None
@@ -22,9 +24,11 @@ def _stub(node, source: bytes, indent: str = "") -> str | None:
         return None
 
     # Tree-sitter offsets are byte offsets, including for Unicode identifiers.
-    header = source[node.start_byte : colon.end_byte].decode("utf-8")
+    lines = [source[decorator.start_byte : decorator.end_byte] for decorator in decorators]
+    lines.append(source[node.start_byte : colon.end_byte])
+    header = "\n".join(indent + line.decode("utf-8") for line in lines)
     if node.type == "function_definition":
-        return f"{indent}{header} ..."
+        return f"{header} ..."
 
     members = []
     for child in body.named_children:
@@ -33,8 +37,8 @@ def _stub(node, source: bytes, indent: str = "") -> str | None:
             members.append(member)
 
     if not members:
-        return f"{indent}{header} ..."
-    return f"{indent}{header}\n" + "\n".join(members)
+        return f"{header} ..."
+    return f"{header}\n" + "\n".join(members)
 
 
 def signature_map(example: Example, n: int, tokenizer: Any) -> str:
