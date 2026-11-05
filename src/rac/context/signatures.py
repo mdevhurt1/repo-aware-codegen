@@ -7,6 +7,27 @@ from typing import Any
 from rac.types import Example
 
 
+def _attribute(node, source: bytes, indent: str) -> str | None:
+    """Stub a class-level `name = value` or `name: type` statement without its value."""
+    if node.type != "expression_statement" or not node.named_children:
+        return None
+    assignment = node.named_children[0]
+    if assignment.type != "assignment":
+        return None
+
+    name = assignment.child_by_field_name("left")
+    if name is None or name.type != "identifier":
+        return None
+
+    stub = indent + source[name.start_byte : name.end_byte].decode("utf-8")
+    annotation = assignment.child_by_field_name("type")
+    if annotation is not None:
+        stub += ": " + source[annotation.start_byte : annotation.end_byte].decode("utf-8")
+    if annotation is None or assignment.child_by_field_name("right") is not None:
+        stub += " = ..."
+    return stub
+
+
 def _stub(node, source: bytes, indent: str = "") -> str | None:
     decorators = []
     if node.type == "decorated_definition":
@@ -33,6 +54,8 @@ def _stub(node, source: bytes, indent: str = "") -> str | None:
     members = []
     for child in body.named_children:
         member = _stub(child, source, indent + "    ")
+        if member is None:
+            member = _attribute(child, source, indent + "    ")
         if member is not None:
             members.append(member)
 

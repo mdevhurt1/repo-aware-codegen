@@ -113,3 +113,45 @@ def test_signatures_keep_decorators(examples, tokenizer):
         "def load(path: str) -> Box: ..."
     )
     ast.parse(result)
+
+
+def test_signatures_keep_class_attributes_without_values(examples, tokenizer):
+    # Fields are the whole interface of a dataclass or an enum.
+    example = replace(
+        examples[0],
+        import_statement="",
+        context=[
+            Snippet(
+                "Point",
+                "geo.py",
+                "@dataclass\n"
+                "class Point:\n"
+                '    """A location."""\n'
+                "\n"
+                "    lat: float\n"
+                "    lon: float = 0.0\n"
+                '    UNITS = "DEGREES"\n'
+                "\n"
+                "    def norm(self) -> float:\n"
+                "        scale = 2\n"
+                "        return scale\n"
+                "\n"
+                "class Color(Enum):\n"
+                "    RED = 1\n",
+            )
+        ],
+    )
+
+    result = build_context(example, "signatures", 256, tokenizer)
+
+    assert result == (
+        "@dataclass\n"
+        "class Point:\n"
+        "    lat: float\n"
+        "    lon: float = ...\n"
+        "    UNITS = ...\n"
+        "    def norm(self) -> float: ...\n"
+        "class Color(Enum):\n"
+        "    RED = ..."
+    )
+    ast.parse(result)
