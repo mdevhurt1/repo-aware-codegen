@@ -38,7 +38,11 @@ def _stub(node, source: bytes, indent: str = "") -> str | None:
 
 
 def signature_map(example: Example, n: int, tokenizer: Any) -> str:
-    """Return imports and complete interface stubs within n model tokens."""
+    """Return complete interface stubs within n model tokens.
+
+    The example's import statements are left to build_prompt, which adds them after
+    this block.
+    """
     if n < 0:
         raise ValueError("Token budget must be non-negative.")
     if n == 0:
@@ -50,11 +54,6 @@ def signature_map(example: Example, n: int, tokenizer: Any) -> str:
 
     parser = Parser(Language(tree_sitter_python.language()))
     units = []
-
-    imports = example.import_statement.encode("utf-8")
-    for node in parser.parse(imports).root_node.named_children:
-        if node.type in {"import_statement", "import_from_statement"} and not node.has_error:
-            units.append(imports[node.start_byte : node.end_byte].decode("utf-8"))
 
     for candidate in example.context:
         source = candidate.snippet.encode("utf-8")

@@ -33,7 +33,7 @@ def test_signatures_keep_interfaces_without_bodies(examples, tokenizer):
 
     result = build_context(example, "signatures", 256, tokenizer)
 
-    assert result.startswith("from pathlib import Path\n")
+    assert "from pathlib import Path" not in result
     assert "class Reader:\n    async def read(path: Path) -> str: ..." in result
     assert "def café(size: int = 2) -> int: ..." in result
     assert "BODY_ONLY" not in result
@@ -62,3 +62,17 @@ def test_signatures_skip_oversized_stub_without_cutting_it(examples, tokenizer):
 
     assert result == "def small(): ..."
     ast.parse(result)
+
+
+def test_signatures_spend_no_budget_on_imports(examples, tokenizer):
+    # build_prompt adds the import statements after this block, so repeating them here
+    # would charge them to the budget twice.
+    example = replace(
+        examples[0],
+        import_statement="from shop.models import Item",
+        context=[Snippet("small", "helpers.py", "def small():\n    return 1\n")],
+    )
+
+    result = build_context(example, "signatures", 4, tokenizer)
+
+    assert result == "def small(): ..."
