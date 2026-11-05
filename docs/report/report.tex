@@ -47,175 +47,138 @@ ENPM703, Group 2
 
 %%%%%%%%% ABSTRACT
 \begin{abstract}
-   \todo{One paragraph, written last: the problem, what we varied, the data and
-   model, and the headline result.}
+   Code completion models rely mainly on the current file, while functions, classes, and
+   variables are often defined across a repository. Cross-file context can improve
+   predictions, but large language models have limited context windows and processing more
+   code costs more, so choosing context within a fixed token budget is an important
+   challenge. We study how cross-file retrieval and representation strategies affect
+   next-line prediction accuracy at budgets of 256 to 4,096 tokens, with the model frozen.
+   A second pass will investigate whether a classifier can predict the best strategy and
+   budget for each completion. We evaluate DeepSeek-Coder-1.3B in 4-bit quantization on
+   RepoBench v1.1; the Python portion of CrossCodeEval will serve as a final test. On 2,000
+   examples, every strategy improves on no context at every budget. Whole snippets ranked
+   by BM25 perform best among methods without access to the gold snippet, raising edit
+   similarity by 3.60 points (95\% CI $[2.79, 4.43]$) and exact match from 15.8\% to 22.0\%
+   at 4,096 tokens. Neither shorter snippets nor signature maps beat them at any budget.
 \end{abstract}
 
 %%%%%%%%% BODY TEXT
 \section{Introduction}
 
-Code completion models mostly see the open file, but real code calls functions
-and classes defined elsewhere in the repository. Adding cross-file context
-helps, but the context window has a limited budget. We ask two questions:
-what should fill a budget of $N$ tokens for a small model, and can a classifier
-predict the best choice for each completion?
+Code completion models mostly see the open file, but real code calls functions and classes
+defined elsewhere in the repository. Adding cross-file context helps, but the context window
+has a limited budget. We ask two questions: what should fill a budget of $N$ tokens for a
+small model, and can a classifier predict the best choice for each completion?
 
-Our plan has four steps:
-\begin{enumerate}
-   \item Build an evaluation harness on RepoBench~\cite{liu2023repobench}.
-   \item Pass 1: run small pretrained code models, varying only the cross-file
-   context (method and budget), and record accuracy and generation time.
-   \item Measure accuracy against budget for each method, across two sizes of one
-   model family.
-   \item Pass 2: use the per-example results of pass 1 as labels to train a
-   classifier on repository and context features. Test whether it beats the best
-   single fixed method.
-\end{enumerate}
+Our plan has four steps: (1) build an evaluation harness on
+RepoBench~\cite{liu2023repobench}; (2) in pass 1, run small pretrained code models, varying
+only the cross-file context (method and budget), and record accuracy and generation time;
+(3) measure accuracy against budget for each method, across two sizes of one model family;
+and (4) in pass 2, use the per-example results of pass 1 as labels to train a classifier on
+repository and context features, and test whether it beats the best single fixed method.
 
 This milestone report covers the project's current state and our plan up to the final
-report. Steps 1--3 are complete for every method except dense retrieval, and are
-reported in Section~\ref{sec:results}. Step 4 is designed (Section~\ref{sec:selector})
-but not yet built.
+report. Steps 1--3 are complete on DeepSeek-Coder-1.3B for every method except dense
+retrieval, and are reported in Section~\ref{sec:results}. Step 4 is designed
+(Section~\ref{sec:selector}) but not yet built. Before the final report, we will build the
+selector, add dense retrieval, and run the CrossCodeEval test.
 
 %-------------------------------------------------------------------------
 \section{Problem Statement}
 
 \subsection{Problem Description}
 
-Given a partially written Python source file, a set of candidate
-code snippets from other files in the repository, and a maximum
-context budget of $N$ tokens, the solution must construct an input that allows a
-pretrained language model to predict the next line of code as accurately as
-possible.
-
-Through our experiments, we aim to study how different context retrieval methods affect
-next-line prediction accuracy under varying token budgets, and whether providing cross-file
-context consistently improves performance. Additionally, we will investigate whether a
-trained classifier can select an effective retrieval method and budget for each
-example, and outperform a single fixed strategy.
+Given a partially written Python source file, candidate code snippets from other files in
+the repository, and a budget of $N$ tokens, the solution must construct an input that lets a
+pretrained language model predict the next line of code as accurately as possible. We study
+how context retrieval methods affect accuracy across budgets, whether cross-file context
+consistently helps, and whether a trained classifier can select a method and budget for each
+example and outperform a single fixed strategy.
 
 \subsection{Dataset}
 
-The primary dataset is RepoBench~\cite{liu2023repobench} v1.1. It provides
-completion tasks to predict the next line of code using information from both 
-the current file and other relevant files in the repository. Each example includes 
-the in-file source code up to the completion point, candidate cross-file snippets, and the
-expected next line. RepoBench also identifies a gold snippet associated with
-the completion task. This allows controlled comparisons between context
-retrieval methods and supports an \emph{oracle} method that
-prioritizes known relevant context.
-
-RepoBench was chosen over CrossCodeEval~\cite{ding2023crosscodeeval}
-as the main set because each example ships its candidates and the index of the
-gold one, which the oracle needs. Nevertheless, we intend to use CrossCodeEval as a secondary 
-test set to evaluate generalization.
+The primary dataset is RepoBench~\cite{liu2023repobench} v1.1. Each example includes the
+in-file source code up to the completion point, candidate cross-file snippets, the expected
+next line, and the index of a gold snippet. This allows controlled comparisons between
+retrieval methods and supports an \emph{oracle} method that prioritizes known relevant
+context. We chose RepoBench over CrossCodeEval~\cite{ding2023crosscodeeval} as the main set
+because the oracle needs those candidates and that index. We intend to use the Python portion
+of CrossCodeEval as a secondary test set to evaluate generalization.
 
 \subsection{Model Input and Output}
 
-The primary code generation model is DeepSeek-Coder-1.3B-Base~\cite{guo2024deepseekcoder},
-a pretrained language model for programming tasks. The larger DeepSeek-Coder-5.7B-MQA-Base
-gives a second size from the same family. The models remain frozen throughout while we
-vary the external context they receive.
-
-The model input has two main components:
-\begin{itemize}
-   \item \textbf{In-file context:} the file's import statements and the existing
-   Python source code preceding the cursor at the completion point.
-   \item \textbf{Cross-file context:} additional code selected from the repository,
-   fit to a maximum token budget.
-\end{itemize}
-
-The cross-file context budget varies across $N \in \{256, 512, 1024, 2048, 4096\}$
-tokens. Tokens are counted with the model's own tokenizer, so that each method is
-evaluated under the same constraint. The output is the model's predicted next code line,
-which is compared with the expected line.
+The primary model is DeepSeek-Coder-1.3B-Base~\cite{guo2024deepseekcoder}, and the larger
+DeepSeek-Coder-5.7B-MQA-Base gives a second size from the same family. Both remain frozen
+while we vary the context they receive. The input combines \textbf{in-file context} (the
+file's import statements and the source code preceding the cursor) with \textbf{cross-file
+context} (code selected from the repository and fit to a budget
+$N \in \{256, 512, 1024, 2048, 4096\}$, counted with the model's own tokenizer). The output
+is the predicted next line of code, which is compared with the expected line.
 
 \subsection{Evaluation Metrics}
 
-We evaluate with Exact Match (EM) and Edit Similarity (ES), as RepoBench
-defines them. EM is the percentage of predictions that match the expected next line
-exactly. ES measures the degree of similarity between the generated and expected
-code on a 0--100 scale.
-
-We also record generation time per completion, accuracy relative to the amount of
-context provided (ES gain per 1,000 context tokens actually used), and the
-differences between methods evaluated on the same examples. These measurements help
-determine whether improvements in prediction quality justify the additional context
-and computational cost. Qualitatively, we examine worked completions in which
-cross-file context fixed the line and in which it misled the model.
+We evaluate with Exact Match (EM), the percentage of predictions that match the expected line
+exactly, and Edit Similarity (ES), the similarity to the expected line on a 0--100 scale, as
+RepoBench defines them. We also record generation time per completion, ES gain per 1,000
+context tokens used, and paired differences between methods, to judge whether better
+predictions justify the added context and cost. Qualitatively, we will examine worked
+completions in which cross-file context fixed the line or misled the model.
 
 \subsection{Expected Results}
 
-We expected that providing repository context would improve next-line
-prediction at every budget over no context. We also expected the best method to
-depend on the budget. At small budgets, shorter representations may outperform complete
-snippets by exposing the model to more repository files within the same limit. At
-larger budgets, complete snippets may be more effective because they preserve
-implementation details needed to predict the correct line. An oracle should perform
-strongly because it has the known relevant snippet, though not optimally on every
-example, since any additional context may affect generation. Finally, we hypothesize
-that a classifier may outperform the best single fixed method by selecting
-context from features of each example, and may reduce cost by choosing a smaller budget
-or no additional context when more repository information is unlikely to help.
+We expected repository context to improve prediction over no context at every budget, and the
+best method to depend on the budget: shorter representations may win at small budgets by
+exposing the model to more files, and complete snippets at larger budgets by preserving
+implementation details. An oracle should perform strongly, though not optimally on every
+example, since any additional context may affect generation. Finally, we hypothesize that a
+classifier may outperform the best single fixed method, and may reduce cost by choosing a
+smaller budget or no context when more is unlikely to help.
 
 \subsection{Differences from Existing Approaches}
 
-This project builds on existing work in repository-aware completion and context
-retrieval. RepoFuse~\cite{liang2024repofuse} compares representations of repository
-context, such as signatures and code snippets, under controlled token budgets, but
-reports one model across budgets. Repoformer~\cite{wu2024repoformer} and
-ProCC~\cite{tan2024procc} choose repository context per example: Repoformer fine-tunes
-the code model itself, using self-supervised learning, while ProCC runs an online
-bandit over retrieval perspectives and can be applied to base or fine-tuned models.
-
-Our approach differs in its focus on adaptive context selection without fine-tuning
-the code generation model. We propose a separate classifier, trained using features
-computed before generation, that predicts a context method and budget for each
-completion. We also report the trade-offs between accuracy, context
-usage, and latency for small models, which may identify
-strategies that work without extensive computational resources.
+RepoFuse~\cite{liang2024repofuse} compares representations of repository context, such as
+signatures and code snippets, under controlled token budgets, but reports one model across
+budgets. Repoformer~\cite{wu2024repoformer} and ProCC~\cite{tan2024procc} choose repository
+context per example: Repoformer fine-tunes the code model itself, using self-supervised
+learning, while ProCC runs an online bandit over retrieval perspectives and can be applied to
+base or fine-tuned models. Our approach selects context adaptively without fine-tuning: a
+separate classifier, trained on features computed before generation, predicts a context method
+and budget for each completion. We also report the trade-offs between accuracy, context usage,
+and latency for small models.
 
 %-------------------------------------------------------------------------
 \section{Technical Approach}
 
 \subsection{Architecture}
 
-An experiment runner loops over examples, methods, and budgets. For each combination,
-a context builder returns a cross-file block that fits in $N$ tokens. The
-prompt places that block first, then the file's import statements, then the in-file
-code up to the cursor. The frozen model generates greedily until the end of the line,
-up to a set maximum of new tokens, and each completion is scored and recorded with its generation
-time. Paired statistics then compare methods on the same examples. The planned selector
-will take those per-example results as labels.
+An experiment runner loops over examples, methods, and budgets. A context builder returns a
+cross-file block that fits in $N$ tokens, and the prompt places that block first, then the
+file's import statements, then the in-file code up to the cursor. The frozen model generates
+greedily until the end of the line, up to a set maximum of new tokens, and each completion is
+scored and recorded with its generation time. Paired statistics then compare methods on the
+same examples.
 
 \subsection{Data Preprocessing}
 
-All methods draw from the candidate snippets RepoBench ships with each example; only
-the selection and the encoding differ (Table~\ref{tab:methods}). The file's import
-statements are part of the in-file context for every method, including no context, and
-do not count against the budget.
-
-\textbf{Fill rule.} We take units in rank order until one crosses the budget, then keep
-the longest prefix that fits.
-
-\textbf{Retrieval query.} BM25 ranks candidates against the last 5 lines before the
-cursor.
+All methods draw from the candidate snippets RepoBench includes with each example; only the
+selection and the encoding differ (Table~\ref{tab:methods}). Import statements do not count
+against the budget. BM25 ranks candidates against the last 5 lines before the cursor. We take
+units in rank order until one crosses the budget, then keep the longest prefix that fits.
 
 \begin{table}[t]
 \begin{center}
 \small
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{|p{0.23\linewidth}|p{0.47\linewidth}|p{0.22\linewidth}|}
+\begin{tabular}{|p{0.25\linewidth}|p{0.69\linewidth}|}
 \hline
-Method & What fills the budget & Role \\
+Method & What fills the budget \\
 \hline\hline
-No context & Nothing & Floor \\
-BM25 long & Whole candidate snippets, ranked by lexical match & Large snippets from few files \\
-BM25 short & First 10 lines of each candidate, ranked by lexical match & Short snippets from more files \\
-Signature map & Function and class signatures parsed with tree-sitter, written as \texttt{.pyi}-style stubs & Structured method \\
-Oracle & The gold snippet first, then the BM25 long or short rule & Ceiling \\
-Gold only (variant) & The gold snippet alone & Oracle variant \\
-Dense (planned) & Whole snippets ranked by UniXcoder embedding similarity & Semantic retrieval \\
+No context & Nothing (floor) \\
+BM25 long & Whole candidate snippets, ranked by lexical match \\
+BM25 short & First 10 lines of each candidate, ranked by lexical match \\
+Signature map & Function and class signatures parsed with tree-sitter, written as \texttt{.pyi}-style stubs \\
+Oracle & The gold snippet first, then the BM25 long or short rule (ceiling) \\
+Dense (planned) & Whole snippets ranked by UniXcoder embedding similarity \\
 \hline
 \end{tabular}
 \end{center}
@@ -223,82 +186,81 @@ Dense (planned) & Whole snippets ranked by UniXcoder embedding similarity & Sema
 \label{tab:methods}
 \end{table}
 
-\subsection{Context Selector (Pass 2)}
+\subsection{Planned Context Selector (Pass 2)}
 \label{sec:selector}
-
-The selector is designed but not yet implemented; this section describes the intended
-design.
 
 \textbf{Label.} For each example, the method and smallest budget with the highest edit
 similarity in pass 1. Ties go to the cheaper option.
 
-\textbf{Features.} In-repo import count, number and total length of candidates,
-identifier overlap between the last lines and candidate names, the top BM25
-score and its gap to the second, and in-file prefix length. They come
-from the current file and candidates derived from its imports. Outside RepoBench,
-candidates come from resolving in-repo imports with tree-sitter.
+\textbf{Features.} In-repo import count, number and total length of candidates, identifier
+overlap between the last lines and candidate names, the top BM25 score and its gap to the
+second, and in-file prefix length. Outside RepoBench, candidates come from resolving in-repo
+imports with tree-sitter.
 
-\textbf{Classifiers.} Logistic regression and gradient-boosted trees.
-We split by repository, so no repository appears in both training and test.
+\textbf{Classifiers and baselines.} Logistic regression and gradient-boosted trees, split by
+repository so that none appears in both training and test. Baselines are the best single fixed
+method, a random choice, and the per-example oracle as the upper bound.
 
-\textbf{Baselines.} The best single fixed method, a random choice, and the per-example
-oracle as the upper bound.
-
-\textbf{Label preview.} On the frozen 500 examples, no context ties for the best ES on 259
-examples, and is strictly best on 8. Because ties go to the cheaper option, about
-half of the labels are therefore ``no context''. Choosing the best option per example
-gives ES 73.12 against 65.35 for the best fixed option (BM25 long at $N=1024$).
-That is an inflated upper bound, since it selects on the outcome being measured.
+\textbf{Label preview.} On the frozen 500 examples, no context reaches the best ES on 259 and
+is strictly best on 8 of them, so about half of the labels are ``no context''. Choosing the
+best option per example gives ES 73.12 against 65.35 for the best fixed option (BM25 long at
+$N=1024$), an inflated upper bound because it selects on the outcome being measured.
 
 %-------------------------------------------------------------------------
 \section{Preliminary Results}
 \label{sec:results}
 
-\subsection{Setup}
-
-We ran DeepSeek-Coder-1.3B in 4-bit on \texttt{cross\_file\_first}, using two samples: a
-frozen random sample of 500 examples, and 2,000 examples pooling those 500 with 1,500 more
-drawn without overlap. The budget curves use the 2,000. ES differences use a paired bootstrap
-(10,000 resamples) with 95\% intervals, and EM differences use an exact McNemar test with Holm
-correction across the methods at each budget. Repeating our first run at $N=512$ gave identical
-predictions on all 500 examples for each of the four methods checked.
-
-\subsection{Budget Curves}
+We ran DeepSeek-Coder-1.3B in 4-bit on RepoBench's Python \texttt{cross\_file\_first} subset,
+using a frozen random sample of 500 examples and 2,000 examples that pool those 500 with 1,500
+more drawn without overlap. The budget curves (Figure~\ref{fig:curves}) use the 2,000. ES
+differences use a paired bootstrap (10,000 resamples) with 95\% intervals, and EM differences
+use an exact McNemar test with Holm correction across the methods at each budget. Repeating
+our first run at $N=512$ gave identical predictions on all 500 examples for each of the four
+methods checked.
 
 \begin{figure}[t]
 \begin{center}
    \includegraphics[width=\linewidth]{fig12_delta_es_n2000.pdf}
 \end{center}
-   \caption{Paired ES gain over no context by budget on 2,000 \texttt{cross\_file\_first}
-   examples with DeepSeek-Coder-1.3B. Bars are 95\% bootstrap intervals.}
+   \caption{Paired ES gain over no context by budget on the 2,000 examples. Bars are 95\%
+   bootstrap intervals.}
 \label{fig:curves}
 \end{figure}
-
-Figure~\ref{fig:curves} shows the gain from context at each
-budget.
 
 \textbf{Context helps at every budget.} Every method beats no context at every budget, on
 ES and on EM (Holm-corrected $p \le .007$).
 
 \textbf{Short did not beat long at small budgets.} We expected shorter snippets to win when
-the budget is tight, but the difference between BM25 long and short is indistinguishable
-from zero at $N=256$ (long $-$ short $+0.24$, 95\% CI $[-0.41, +0.89]$) and $N=512$ ($+0.17$,
-$[-0.48, +0.82]$). The expected advantage for long at large budgets did appear: $+1.19$
-$[+0.47, +1.90]$ at $N=2048$ and $+1.61$ $[+0.88, +2.35]$ at $N=4096$, where EM is 22.0\%
-against 18.9\%. BM25 short plateaus because it runs out of candidates, using a mean of 1,199
-tokens at $N=4096$ against 3,326 for long.
+the budget is tight, but BM25 long minus short is indistinguishable from zero at $N=256$
+($+0.24$, 95\% CI $[-0.41, +0.89]$) and $N=512$ ($+0.17$, $[-0.48, +0.82]$). The expected
+advantage for long at large budgets did appear: $+1.19$ $[+0.47, +1.90]$ at $N=2048$ and
+$+1.61$ $[+0.88, +2.35]$ at $N=4096$, where EM is 22.0\% against 18.9\%. BM25 short plateaus
+because it runs out of candidates, using a mean of 1,199 tokens at $N=4096$ against 3,326 for
+long.
 
 \textbf{Signature maps trail BM25 long and do not save tokens.} Their ES gain falls below BM25
-long from $N=512$ upward, reaching $-1.52$ $[-2.30, -0.74]$ at $N=4096$. At
-$N=2048$ and $4096$ they match BM25 short ($+0.10$) while using
-slightly more tokens (1,086 against 1,042, and 1,459 against 1,199).
+long from $N=512$ upward, reaching $-1.52$ $[-2.30, -0.74]$ at $N=4096$. At $N=2048$ and $4096$
+they match BM25 short (ES difference $+0.10$ at both) while using slightly more tokens (1,086
+against 1,042, and 1,459 against 1,199).
 
 \textbf{The oracle shows small room for better retrieval.} Placing the gold snippet first adds
 $+0.79$ to $+1.27$ ES over BM25 long at the same budget, with every interval above zero.
 
 \textbf{Cost.} Median generation time rises from 0.24\,s with no context to 0.48\,s for BM25 long
-at $N=4096$, against 0.32\,s for BM25 short and 0.38\,s for signature maps. With 1.3B, the
-largest GPU memory footprint we sampled for the process was 5.5\,GB, within the 8\,GB hardware floor.
+at $N=4096$, against 0.32\,s for BM25 short and 0.38\,s for signature maps. With 1.3B, the largest
+GPU memory footprint we sampled for the process was 5.5\,GB, within the 8\,GB of our target laptop GPU.
+
+\section{Implications for the Remaining Work}
+
+These results reshape the plan in three ways. First, the selector should be judged on
+ES and tokens used together, not label accuracy. Most ``no context'' labels are ties
+won on cost (251 of 259), so they mean that context did not improve the score, not that
+it hurt, and the selector's clearest opportunity may be saving tokens. Second, we expect
+modest gains from dense retrieval, since placing the gold snippet first adds at most
+$1.27$ ES over BM25 long. Third, these gains may not generalize: they come from one
+model, and from RepoBench's \texttt{cross\_file\_first} subset with its supplied
+candidates. The larger model and CrossCodeEval test this directly.
+
 
 {\small
 \bibliographystyle{ieee}
