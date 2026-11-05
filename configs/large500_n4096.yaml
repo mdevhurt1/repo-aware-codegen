@@ -1,0 +1,18 @@
+run_name: large500_n4096
+model:
+  name: deepseek-ai/deepseek-coder-5.7bmqa-base
+  quant: 4bit
+data:
+  dataset: tianyang/repobench_python_v1.1
+  revision: 8a7cf0c8942cc1aa066bf261839650ac55a2ff79
+  split: cross_file_first
+  sample: data/samples/cff_500_seed0.json
+methods:
+- bm25_long
+- bm25_short
+- oracle_long
+budgets:
+- 4096
+generation:
+  max_new_tokens: 64
+output_dir: outputs
