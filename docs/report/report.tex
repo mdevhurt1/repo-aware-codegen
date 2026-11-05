@@ -91,24 +91,18 @@ context budget of $N$ tokens, the solution must construct an input that allows a
 pretrained language model to predict the next line of code as accurately as
 possible.
 
-The primary research questions are:
-\begin{enumerate}
-   \item How do different context retrieval and representation methods affect
-   next-line prediction accuracy under varying token budgets?
-   \item Does providing additional cross-file context consistently improve
-   performance compared with using only the current file?
-   \item Can a lightweight classifier select an effective context retrieval
-   method and token budget for each example, and outperform a single fixed
-   strategy?
-\end{enumerate}
+Through our experiments, we aim to study how different context retrieval methods affect
+next-line prediction accuracy under varying token budgets, and whether providing cross-file
+context consistently improves performance. Additionally, we will investigate whether a
+lightweight trained classifier can select an effective retrieval method and budget for each
+example, and outperform a single fixed strategy.
 
 \subsection{Dataset}
 
 The primary dataset is RepoBench~\cite{liu2023repobench} v1.1. It provides
-repository-level completion tasks in which the model must predict the next
-line of code using information from both the current file and relevant
-files elsewhere in the repository. Each example includes the in-file source
-code up to the completion point, candidate cross-file snippets, and the
+completion tasks to predict the next line of code using information from both 
+the current file and other relevant files in the repository. Each example includes 
+the in-file source code up to the completion point, candidate cross-file snippets, and the
 expected next line. RepoBench also identifies a gold snippet associated with
 the completion task. This allows controlled comparisons between context
 retrieval methods and supports an \emph{oracle} method that
@@ -118,8 +112,8 @@ We use the \texttt{cross\_file\_first} and \texttt{cross\_file\_random}
 subsets, which evaluate context retrieval across different types of repository-level
 dependencies. RepoBench was chosen over CrossCodeEval~\cite{ding2023crosscodeeval}
 as the main set because each example ships its candidates and the index of the
-gold one, which the oracle needs. For evaluation of generalization, we intend to use
-the Python portion of CrossCodeEval as a secondary test set.
+gold one, which the oracle needs. Nevertheless, we intend to use CrossCodeEval as a secondary 
+test set to evaluate generalization.
 
 \subsection{Model Input and Output}
 
