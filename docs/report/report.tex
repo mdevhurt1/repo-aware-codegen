@@ -56,29 +56,26 @@ ENPM703, Group 2
 
 Code completion models mostly see the open file, but real code calls functions
 and classes defined elsewhere in the repository. Adding cross-file context
-helps, but the context window has a limited budget, and on a laptop GPU every
-extra token counts. We ask two questions: what should fill a budget of $N$
-tokens for a small model, and can a cheap classifier predict the best choice for
-each completion?
+helps, but the context window has a limited budget. We ask two questions:
+what should fill a budget of $N$ tokens for a small model, and can a classifier
+predict the best choice for each completion?
 
 Our plan has four steps:
 \begin{enumerate}
-   \item Build an evaluation harness on RepoBench~\cite{liu2023repobench} that
-   runs on an 8\,GB laptop GPU.
-   \item Pass 1: run small pretrained code models with no fine-tuning, varying
-   only the cross-file context (method and budget), and record accuracy and
-   generation time for every example.
+   \item Build an evaluation harness on RepoBench~\cite{liu2023repobench}.
+   \item Pass 1: run small pretrained code models, varying only the cross-file
+   context (method and budget), and record accuracy and generation time.
    \item Measure accuracy against budget for each method, across two sizes of one
    model family.
    \item Pass 2: use the per-example results of pass 1 as labels to train a
-   classifier on cheap repository and context features, and test whether it
-   beats the best single fixed method.
+   classifier on repository and context features. Test whether it beats the best
+   single fixed method.
 \end{enumerate}
 
 This milestone report covers the project's current state and our plan up to the final
 report. Steps 1--3 are complete for every method except dense retrieval, and are
-reported in Section~\ref{sec:results}. Step 4 is designed
-(Section~\ref{sec:selector}) but not yet built.
+reported in Section~\ref{sec:results}. Step 4 is designed (Section~\ref{sec:selector})
+but not yet built.
 
 %-------------------------------------------------------------------------
 \section{Problem Statement}
@@ -86,7 +83,7 @@ reported in Section~\ref{sec:results}. Step 4 is designed
 \subsection{Problem Description}
 
 Given a partially written Python source file, a set of candidate
-code snippets retrieved from other files in the same repository, and a maximum
+code snippets from other files in the repository, and a maximum
 context budget of $N$ tokens, the solution must construct an input that allows a
 pretrained language model to predict the next line of code as accurately as
 possible.
@@ -97,9 +94,8 @@ The primary research questions are:
    next-line prediction accuracy under varying token budgets?
    \item Does providing additional cross-file context consistently improve
    performance compared with using only the current file?
-   \item Can a lightweight classifier select an effective context retrieval
-   method and token budget for each example, and outperform a single fixed
-   strategy?
+   \item Can a classifier select an effective context retrieval method and
+   token budget for each example, and outperform a single fixed strategy?
 \end{enumerate}
 
 \subsection{Dataset}
@@ -114,9 +110,7 @@ the completion task. This allows controlled comparisons between context
 retrieval methods and supports an \emph{oracle} method that
 prioritizes known relevant context.
 
-We use the \texttt{cross\_file\_first} and \texttt{cross\_file\_random}
-subsets, which evaluate context retrieval across different types of repository-level
-dependencies. RepoBench was chosen over CrossCodeEval~\cite{ding2023crosscodeeval}
+RepoBench was chosen over CrossCodeEval~\cite{ding2023crosscodeeval}
 as the main set because each example ships its candidates and the index of the
 gold one, which the oracle needs. For evaluation of generalization, we intend to use
 the Python portion of CrossCodeEval as a secondary test set.
@@ -125,8 +119,8 @@ the Python portion of CrossCodeEval as a secondary test set.
 
 The primary code generation model is DeepSeek-Coder-1.3B-Base~\cite{guo2024deepseekcoder},
 a pretrained language model for programming tasks. The larger DeepSeek-Coder-5.7B-MQA-Base
-gives a second size from the same family. The models remain frozen throughout: rather than
-modifying their parameters, we vary the external context they receive.
+gives a second size from the same family. The models remain frozen throughout while we
+vary the external context they receive.
 
 The model input has two main components:
 \begin{itemize}
@@ -138,12 +132,12 @@ The model input has two main components:
 
 The cross-file context budget varies across $N \in \{256, 512, 1024, 2048, 4096\}$
 tokens. Tokens are counted with the model's own tokenizer, so that each method is
-evaluated under the same constraint. The output is the model's predicted next line
-of Python code, which is compared with the expected line from the dataset.
+evaluated under the same constraint. The output is the model's predicted next code line,
+which is compared with the expected line.
 
 \subsection{Evaluation Metrics}
 
-We evaluate primarily with Exact Match (EM) and Edit Similarity (ES), as RepoBench
+We evaluate with Exact Match (EM) and Edit Similarity (ES), as RepoBench
 defines them. EM is the percentage of predictions that match the expected next line
 exactly. ES measures the degree of similarity between the generated and expected
 code on a 0--100 scale.
@@ -157,18 +151,17 @@ cross-file context fixed the line and in which it misled the model.
 
 \subsection{Expected Results}
 
-We expected that providing relevant repository context would improve next-line
-prediction at every budget, compared with no cross-file context. We also
-expected the best method to depend on the budget. At small budgets, shorter
-representations may outperform complete snippets by exposing the model to more
-repository files within the same limit. At larger budgets, complete snippets may be
-more effective because they preserve implementation details needed to predict the
-correct line. An oracle should perform strongly because it has the known relevant
-snippet, though not optimally on every example, since any additional context may
-affect generation. Finally, we hypothesize that a lightweight classifier may
-outperform the best single fixed method by selecting context from features of each
-example, and may reduce cost by choosing a smaller budget or no additional context
-when more repository information is unlikely to help.
+We expected that providing repository context would improve next-line
+prediction at every budget over no context. We also expected the best method to
+depend on the budget. At small budgets, shorter representations may outperform complete
+snippets by exposing the model to more repository files within the same limit. At
+larger budgets, complete snippets may be more effective because they preserve
+implementation details needed to predict the correct line. An oracle should perform
+strongly because it has the known relevant snippet, though not optimally on every
+example, since any additional context may affect generation. Finally, we hypothesize
+that a classifier may outperform the best single fixed method by selecting
+context from features of each example, and may reduce cost by choosing a smaller budget
+or no additional context when more repository information is unlikely to help.
 
 \subsection{Differences from Existing Approaches}
 
@@ -181,10 +174,10 @@ the code model itself, using self-supervised learning, while ProCC runs an onlin
 bandit over retrieval perspectives and can be applied to base or fine-tuned models.
 
 Our approach differs in its focus on adaptive context selection without fine-tuning
-the code generation model. We propose a separate lightweight classifier, trained 
-using features computed before generation, that predicts a context method and
-budget for each completion. We also report the trade-offs between accuracy, context
-usage, and latency for small models on consumer hardware, which may identify
+the code generation model. We propose a separate classifier, trained using features
+computed before generation, that predicts a context method and budget for each
+completion. We also report the trade-offs between accuracy, context
+usage, and latency for small models, which may identify
 strategies that work without extensive computational resources.
 
 %-------------------------------------------------------------------------
