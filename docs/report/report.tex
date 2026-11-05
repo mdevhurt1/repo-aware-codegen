@@ -68,7 +68,7 @@ Our plan has four steps:
    \item Pass 1: run small pretrained code models with no fine-tuning, varying
    only the cross-file context (method and budget), and record accuracy and
    generation time for every example.
-   \item Plot accuracy against budget for each method, across two sizes of one
+   \item Measure accuracy against budget for each method, across two sizes of one
    model family.
    \item Pass 2: use the per-example results of pass 1 as labels to train a
    classifier on cheap repository and context features, and test whether it
@@ -78,17 +78,14 @@ Our plan has four steps:
 This milestone report covers the project's current state and our plan up to the final
 report. Steps 1--3 are complete for every method except dense retrieval, and are
 reported in Section~\ref{sec:results}. Step 4 is designed
-(Section~\ref{sec:selector}) but not yet built. Section~\ref{sec:plan} sets out the
-remaining work.
+(Section~\ref{sec:selector}) but not yet built.
 
 %-------------------------------------------------------------------------
 \section{Problem Statement}
 
 \subsection{Problem Description}
 
-The objective of this project is to improve repository-aware next-line code
-prediction by selecting and encoding relevant cross-file context within a limited
-token budget. Given a partially written Python source file, a set of candidate
+Given a partially written Python source file, a set of candidate
 code snippets retrieved from other files in the same repository, and a maximum
 context budget of $N$ tokens, the solution must construct an input that allows a
 pretrained language model to predict the next line of code as accurately as
@@ -107,31 +104,29 @@ The primary research questions are:
 
 \subsection{Dataset}
 
-The primary dataset is RepoBench~\cite{liu2023repobench} v1.1, specifically its
-23,561 Python code completion examples. It provides repository-level completion
-tasks in which the model must predict the next line of code using information
-from both the current file and potentially relevant files elsewhere in the
-repository. Each example includes the in-file source code up to the completion
-point, candidate cross-file snippets, and the expected next line. RepoBench also
-identifies a gold snippet associated with the completion task. This allows
-controlled comparisons between context retrieval methods and supports an
-\emph{oracle} method that prioritizes known relevant context.
+The primary dataset is RepoBench~\cite{liu2023repobench} v1.1. It provides
+repository-level completion tasks in which the model must predict the next
+line of code using information from both the current file and relevant
+files elsewhere in the repository. Each example includes the in-file source
+code up to the completion point, candidate cross-file snippets, and the
+expected next line. RepoBench also identifies a gold snippet associated with
+the completion task. This allows controlled comparisons between context
+retrieval methods and supports an \emph{oracle} method that
+prioritizes known relevant context.
 
-We use the \texttt{cross\_file\_first} (8,033 examples) and
-\texttt{cross\_file\_random} (7,618 examples) subsets, which evaluate context
-retrieval across different types of repository-level dependencies. RepoBench
-was chosen over CrossCodeEval~\cite{ding2023crosscodeeval} as the main
-set because each example ships its candidates and the index of the gold one, which
-the oracle and the pass 2 labels need. For additional evaluation of generalization,
-we intend to use the Python portion of CrossCodeEval as a secondary test set.
+We use the \texttt{cross\_file\_first} and \texttt{cross\_file\_random}
+subsets, which evaluate context retrieval across different types of repository-level
+dependencies. RepoBench was chosen over CrossCodeEval~\cite{ding2023crosscodeeval}
+as the main set because each example ships its candidates and the index of the
+gold one, which the oracle needs. For evaluation of generalization, we intend to use
+the Python portion of CrossCodeEval as a secondary test set.
 
 \subsection{Model Input and Output}
 
 The primary code generation model is DeepSeek-Coder-1.3B-Base~\cite{guo2024deepseekcoder},
-a pretrained language model for programming tasks, loaded in 4-bit. The larger
-DeepSeek-Coder-5.7B-MQA-Base gives a second size from the same family. The models
-remain frozen throughout: rather than modifying their parameters, we vary the
-external context they receive.
+a pretrained language model for programming tasks. The larger DeepSeek-Coder-5.7B-MQA-Base
+gives a second size from the same family. The models remain frozen throughout: rather than
+modifying their parameters, we vary the external context they receive.
 
 The model input has two main components:
 \begin{itemize}
@@ -186,8 +181,8 @@ the code model itself, using self-supervised learning, while ProCC runs an onlin
 bandit over retrieval perspectives and can be applied to base or fine-tuned models.
 
 Our approach differs in its focus on adaptive context selection without fine-tuning
-the code generation model. We propose a separate lightweight classifier, trained on a
-CPU using features computed before generation, that predicts a context method and
+the code generation model. We propose a separate lightweight classifier, trained 
+using features computed before generation, that predicts a context method and
 budget for each completion. We also report the trade-offs between accuracy, context
 usage, and latency for small models on consumer hardware, which may identify
 strategies that work without extensive computational resources.
@@ -198,10 +193,10 @@ strategies that work without extensive computational resources.
 \subsection{Architecture}
 
 An experiment runner loops over examples, methods, and budgets. For each combination,
-a context builder returns a cross-file block and guarantees it fits in $N$ tokens. The
+a context builder returns a cross-file block that fits in $N$ tokens. The
 prompt places that block first, then the file's import statements, then the in-file
 code up to the cursor. The frozen model generates greedily until the end of the line,
-up to 64 new tokens, and each completion is scored and written out with its generation
+up to a set maximum of new tokens, and each completion is scored and recorded with its generation
 time. Paired statistics then compare methods on the same examples. The planned selector
 will take those per-example results as labels.
 
@@ -213,7 +208,7 @@ statements are part of the in-file context for every method, including no contex
 do not count against the budget.
 
 \textbf{Fill rule.} We take units in rank order until one crosses the budget, then keep
-the longest prefix of the assembled text that fits.
+the longest prefix that fits.
 
 \textbf{Retrieval query.} BM25 ranks candidates against the last 5 lines before the
 cursor.
@@ -236,7 +231,7 @@ Dense (planned) & Whole snippets ranked by UniXcoder embedding similarity & Sema
 \hline
 \end{tabular}
 \end{center}
-\caption{Context methods. Every method fills the same token budget $N$. All have been run except dense retrieval, which is not yet built.}
+\caption{Context methods. Every method fills the same token budget $N$.}
 \label{tab:methods}
 \end{table}
 
@@ -249,13 +244,13 @@ design.
 \textbf{Label.} For each example, the method and smallest budget with the highest edit
 similarity in pass 1. Ties go to the cheaper option.
 
-\textbf{Features.} All are computed before generation: in-repo import count, number and
-total length of candidates, identifier overlap between the last lines and candidate
-names, the top BM25 score and its gap to the second, and in-file prefix length. They come
-from the current file and candidates derived from its imports, so they apply to any
-repository. Outside RepoBench, candidates come from resolving in-repo imports with tree-sitter.
+\textbf{Features.} In-repo import count, number and total length of candidates,
+identifier overlap between the last lines and candidate names, the top BM25
+score and its gap to the second, and in-file prefix length. They come
+from the current file and candidates derived from its imports. Outside RepoBench,
+candidates come from resolving in-repo imports with tree-sitter.
 
-\textbf{Classifiers.} Logistic regression and gradient-boosted trees, trained on a CPU.
+\textbf{Classifiers.} Logistic regression and gradient-boosted trees.
 We split by repository, so no repository appears in both training and test.
 
 \textbf{Baselines.} The best single fixed method, a random choice, and the per-example
@@ -275,33 +270,10 @@ That is an inflated upper bound, since it selects on the outcome being measured.
 
 We ran DeepSeek-Coder-1.3B in 4-bit on \texttt{cross\_file\_first}, using two samples: a
 frozen random sample of 500 examples, and 2,000 examples pooling those 500 with 1,500 more
-drawn without overlap. Table~\ref{tab:n512} uses the frozen 500, and the budget curves use
-the 2,000; each is labeled. ES differences use a paired bootstrap (10,000 resamples) with
-95\% intervals, and EM differences use an exact McNemar test with Holm correction across
-the methods at each budget. Repeating our first run at $N=512$ gave identical predictions on all
-500 examples for each of the four methods checked.
-
-\begin{table*}[t]
-\begin{center}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-Method & EM (\%) & ES & $\Delta$ES vs none & Time (s) \\
-\hline\hline
-No context & 17.2 [14.0, 20.6] & 62.4 [60.2, 64.6] & -- & 0.25 \\
-BM25 long & 19.6 [16.2, 23.2] & 65.1 [62.7, 67.3] & +2.68 [+1.30, +4.08] & 0.29 \\
-BM25 short & 19.6 [16.2, 23.0] & 64.6 [62.2, 66.9] & +2.17 [+0.67, +3.69] & 0.28 \\
-Oracle (BM25 long) & 22.0 [18.6, 25.8] & 66.8 [64.4, 69.1] & +4.37 [+2.92, +5.87] & 0.28 \\
-Oracle (BM25 short) & 21.8 [18.4, 25.4] & 66.2 [63.9, 68.5] & +3.81 [+2.29, +5.38] & 0.28 \\
-Gold only (variant) & 21.0 [17.6, 24.6] & 65.2 [62.9, 67.5] & +2.79 [+1.42, +4.20] & 0.27 \\
-Signature map & 18.6 [15.2, 22.0] & 64.1 [61.9, 66.4] & +1.73 [+0.59, +2.88] & 0.28 \\
-\hline
-\end{tabular}
-\end{center}
-\caption{Results at $N=512$ on the frozen sample of 500 \texttt{cross\_file\_first} examples with DeepSeek-Coder-1.3B. Brackets are 95\% bootstrap intervals; $\Delta$ES is paired against no context on the same examples. Oracle places the gold snippet first, then fills the budget with the named BM25 rule; the gold-only variant stops after the gold snippet. Time is median generation seconds.}
-\label{tab:n512}
-\end{table*}
+drawn without overlap. The budget curves use the 2,000. ES differences use a paired bootstrap
+(10,000 resamples) with 95\% intervals, and EM differences use an exact McNemar test with Holm
+correction across the methods at each budget. Repeating our first run at $N=512$ gave identical
+predictions on all 500 examples for each of the four methods checked.
 
 \subsection{Budget Curves}
 
@@ -314,26 +286,7 @@ Signature map & 18.6 [15.2, 22.0] & 64.1 [61.9, 66.4] & +1.73 [+0.59, +2.88] & 0
 \label{fig:curves}
 \end{figure}
 
-\begin{table}[t]
-\begin{center}
-\small
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{|l|ccccc|}
-\hline
-Method & 256 & 512 & 1024 & 2048 & 4096 \\
-\hline\hline
-BM25 long & +1.47 & +2.22 & +2.62 & +3.25 & +3.60 \\
-BM25 short & +1.23 & +2.05 & +2.03 & +2.07 & +1.98 \\
-Oracle (BM25 long) & +2.42 & +3.33 & +3.89 & +4.17 & +4.39 \\
-Signature map & +1.03 & +1.44 & +1.60 & +2.17 & +2.08 \\
-\hline
-\end{tabular}
-\end{center}
-\caption{Paired $\Delta$ES against no context by budget $N$ on 2,000 \texttt{cross\_file\_first} examples (the frozen 500 plus 1,500 more) with DeepSeek-Coder-1.3B. No context scores EM 15.8\%, ES 61.55.}
-\label{tab:sweep2000}
-\end{table}
-
-Figure~\ref{fig:curves} and Table~\ref{tab:sweep2000} show the gain from context at each
+Figure~\ref{fig:curves} shows the gain from context at each
 budget.
 
 \textbf{Context helps at every budget.} Every method beats no context at every budget, on
@@ -358,13 +311,6 @@ $+0.79$ to $+1.27$ ES over BM25 long at the same budget, with every interval abo
 \textbf{Cost.} Median generation time rises from 0.24\,s with no context to 0.48\,s for BM25 long
 at $N=4096$, against 0.32\,s for BM25 short and 0.38\,s for signature maps. With 1.3B, the
 largest GPU memory footprint we sampled for the process was 5.5\,GB, within the 8\,GB hardware floor.
-
-%-------------------------------------------------------------------------
-\section{Plan to the Final Report}
-\label{sec:plan}
-
-\todo{The remaining work and who owns it: the selector, dense retrieval, and the
-CrossCodeEval test.}
 
 {\small
 \bibliographystyle{ieee}
