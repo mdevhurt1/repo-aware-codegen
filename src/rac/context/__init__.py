@@ -13,6 +13,7 @@ from typing import Any
 
 from rac.context import methods
 from rac.context.signatures import signature_map
+from rac.context.tokens import count_tokens
 from rac.types import Example
 
 Builder = Callable[[Example, int, Any], str]
@@ -30,9 +31,6 @@ class BudgetExceeded(ValueError):
     """A builder returned more than N tokens."""
 
 
-def count_tokens(text: str, tokenizer: Any) -> int:
-    """Tokens in `text` under `tokenizer`, without special tokens."""
-    return len(tokenizer(text, add_special_tokens=False)["input_ids"])
 
 
 def build_context(example: Example, method: str, n: int, tokenizer: Any) -> str:
