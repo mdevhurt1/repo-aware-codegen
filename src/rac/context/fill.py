@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from rac.context.tokens import count_tokens
+
 
 def fill_to_cutoff(units: list[str], n: int, tokenizer: Any, sep: str = "\n") -> str:
     """Join ranked units while keeping the result within n model tokens.
@@ -26,7 +28,7 @@ def fill_to_cutoff(units: list[str], n: int, tokenizer: Any, sep: str = "\n") ->
 
     for index, unit in enumerate(units):
         candidate = text + sep + unit if index > 0 else unit
-        used = len(tokenizer(candidate, add_special_tokens=False)["input_ids"])
+        used = count_tokens(candidate, tokenizer)
 
         if used <= n:
             text = candidate
@@ -36,7 +38,7 @@ def fill_to_cutoff(units: list[str], n: int, tokenizer: Any, sep: str = "\n") ->
         # characters combine into a token, so binary search is not reliable.
         for end in range(len(candidate) - 1, 0, -1):
             prefix = candidate[:end]
-            used = len(tokenizer(prefix, add_special_tokens=False)["input_ids"])
+            used = count_tokens(prefix, tokenizer)
 
             if used <= n:
                 return prefix
