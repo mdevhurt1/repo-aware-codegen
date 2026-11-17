@@ -32,3 +32,4 @@ Log every such use here. Commits made with an AI assistant also carry a
 | 2026-11-05 | Marcus | Claude Code (Claude Opus 5.5) | Shaped the team's report material into the LaTeX template; wrote the results prose from the overnight runs | `docs/report/report.tex`, `docs/report/figures/` |
 | 2026-11-05 | Marcus | Claude Code (Claude Opus 5.5) | Resolved the merge conflict between the two report trims in the research questions passage | `docs/report/report.tex` |
 | 2026-11-05 | Marcus | Claude Code (Claude Opus 5.5) | Condensed and formatted the abstract, added its headline result from the overnight runs, and made an review pass over the report | `docs/report/report.tex` |
+| 2026-11-17 | Marcus | Claude Code (Claude Fable 5.1) | Reviewed PRs #35-#38 with subagents; merged `main` into `eval-runner` and resolved the `fill_to_cutoff` conflict with #36 by routing `_fits` through `count_tokens` | `src/rac/context/fill.py`, `AI_USE.md` |
