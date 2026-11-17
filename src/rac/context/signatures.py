@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from rac.context.tokens import count_tokens
 from rac.types import Example
 
 
@@ -67,7 +68,7 @@ def signature_map(example: Example, n: int, tokenizer: Any) -> str:
     result = ""
     for unit in units:
         combined = f"{result}\n{unit}" if result else unit
-        if len(tokenizer(combined, add_special_tokens=False)["input_ids"]) <= n:
+        if count_tokens(combined, tokenizer) <= n:
             result = combined
 
     return result
