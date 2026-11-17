@@ -9,13 +9,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from rac.context.tokens import count_tokens
+
 # How far past the bisected cut to look for a longer prefix that fits. Token counts can
 # drop as characters merge into one token, so the fit test is not monotonic near the cut.
 _MERGE_WINDOW = 32
 
 
 def _fits(text: str, n: int, tokenizer: Any) -> bool:
-    return len(tokenizer(text, add_special_tokens=False)["input_ids"]) <= n
+    return count_tokens(text, tokenizer) <= n
 
 
 def _longest_fitting_prefix(text: str, fitting: int, n: int, tokenizer: Any) -> str:
