@@ -25,6 +25,7 @@ window has a limited budget. We ask two questions:
 | `src/rac/context/` (tokenize, bm25, fill, methods) | retrieval and budget fill |
 | `src/rac/context/signatures.py`, `src/rac/selector/` | signature map, pass 2 selector |
 | `configs/` | one YAML per run |
+| `scripts/` | report experiments: run queue, analysis, figures, retrieval diagnostics |
 | `data/samples/` | committed sample ID lists, so everyone uses the same examples |
 | `outputs/` | run results (gitignored) |
 | `docs/` | architecture and design decisions |

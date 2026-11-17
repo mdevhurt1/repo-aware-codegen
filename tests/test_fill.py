@@ -93,3 +93,70 @@ def test_longest_prefix_with_nonmonotonic_token_counts():
     result = fill_to_cutoff(["abcd"], 1, NonmonotonicTokenizer())
 
     assert result == "abc"
+
+
+class CountingTokenizer(CharacterTokenizer):
+    """Character tokenizer that records how many characters it was asked to tokenize."""
+
+    def __init__(self):
+        self.calls = 0
+        self.chars = 0
+
+    def __call__(self, text, add_special_tokens=True):
+        self.calls += 1
+        self.chars += len(text)
+        return super().__call__(text, add_special_tokens)
+
+
+def test_oversized_unit_needs_few_tokenizer_calls():
+    """A cut must not retokenize once per character of the oversized unit."""
+    tokenizer = CountingTokenizer()
+    budget = 500
+
+    result = fill_to_cutoff(["x" * 200_000], budget, tokenizer)
+
+    assert result == "x" * budget
+    assert tokenizer.calls < 100
+
+
+def test_join_is_counted_as_a_whole_not_unit_by_unit():
+    """Summing per-unit counts undercounts here, and the budget check would then raise."""
+
+    class LeadingSpaceFreeTokenizer:
+        """One token per character, except that leading spaces cost nothing."""
+
+        def __call__(self, text, add_special_tokens=True):
+            assert add_special_tokens is False
+            return {"input_ids": list(range(len(text.lstrip(" "))))}
+
+    # "a" and " b" cost 1 each, but "a b" costs 3.
+    result = fill_to_cutoff(["a", " b"], 2, LeadingSpaceFreeTokenizer(), sep="")
+
+    assert result == "a "
+
+
+def test_tokens_merging_across_units_leave_room_for_more():
+    """Summing per-unit counts overcounts here and would cut text that fits."""
+
+    class MergingTokenizer:
+        """Each character is a token, but "ab" merges into one."""
+
+        def __call__(self, text, add_special_tokens=True):
+            assert add_special_tokens is False
+            return {"input_ids": list(range(len(text.replace("ab", "X"))))}
+
+    assert fill_to_cutoff(["a", "b", "c"], 2, MergingTokenizer(), sep="") == "abc"
+
+
+def test_stops_after_the_first_unit_that_does_not_fit():
+    result = fill_to_cutoff(["aaaa", "bbbbbbbb", "c"], 6, CharacterTokenizer())
+
+    assert result == "aaaa\nb"
+
+
+def test_many_units_are_not_all_tokenized_after_the_budget_is_spent():
+    tokenizer = CountingTokenizer()
+
+    fill_to_cutoff(["x" * 10] * 10_000, 50, tokenizer)
+
+    assert tokenizer.calls < 100
