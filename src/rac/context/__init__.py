@@ -23,6 +23,8 @@ METHODS: dict[str, Builder] = {
     "bm25_long": methods.bm25_long,
     "bm25_short": methods.bm25_short,
     "oracle": methods.oracle,
+    "oracle_long": methods.oracle_long,
+    "oracle_short": methods.oracle_short,
     "signatures": signature_map,
 }
 

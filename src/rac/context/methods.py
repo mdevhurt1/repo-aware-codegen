@@ -109,3 +109,13 @@ def oracle(
         n,
         tokenizer,
     )
+
+
+def oracle_long(example: Example, n: int, tokenizer: Any) -> str:
+    """Ceiling for bm25_long: the gold snippet first, then the rest ranked like bm25_long."""
+    return oracle(example, n, tokenizer, fallback="bm25_long")
+
+
+def oracle_short(example: Example, n: int, tokenizer: Any) -> str:
+    """Ceiling for bm25_short: the gold snippet first, then the rest cut to 10 lines and ranked."""
+    return oracle(example, n, tokenizer, fallback="bm25_short")

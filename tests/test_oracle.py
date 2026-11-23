@@ -6,7 +6,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from rac.context import methods
+from rac import context
+from rac.context import build_context, methods
 from rac.types import Snippet
 
 FIXTURE = Path(__file__).parent / "fixtures" / "repobench_tiny.jsonl"
@@ -287,3 +288,21 @@ def test_oracle_fallback_real_bm25_end_to_end(example, fallback):
     assert "apply_discount" in result
     assert "def total" in result
     assert len(result) <= 1000
+
+
+# The registered variants are the plan's oracle (gold first, then the method's own rule), so
+# they must be reachable through build_context without any script registering them.
+@pytest.mark.parametrize(
+    ("name", "fallback"), [("oracle_long", "bm25_long"), ("oracle_short", "bm25_short")]
+)
+def test_registered_oracle_variants_match_fallback(example, name, fallback):
+    ex = _with_snippets(example, [
+        "def apply_discount(total, code):\n    return total",
+        "class Item:\n    price = 0",
+        "def total(items):\n    return sum(item.price for item in items)",
+    ], gold_index=1)
+    tok = CharacterTokenizer()
+    expected = methods.oracle(ex, 1000, tok, fallback=fallback)
+    assert context.METHODS[name] is getattr(methods, name)
+    assert build_context(ex, name, 1000, tok) == expected
+    assert expected != methods.oracle(ex, 1000, tok), "variant must differ from gold-only"

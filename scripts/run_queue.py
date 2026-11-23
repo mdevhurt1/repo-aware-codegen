@@ -170,7 +170,7 @@ def run_step(config):
         start = time.time()
         with open(LOG / f"{name}.log", "a") as log:
             code = subprocess.run(
-                [PY, "scripts/run_one.py", str(path.relative_to(ROOT))],
+                [PY, "-m", "rac", "run", str(path.relative_to(ROOT))],
                 cwd=ROOT,
                 stdout=log,
                 stderr=subprocess.STDOUT,
