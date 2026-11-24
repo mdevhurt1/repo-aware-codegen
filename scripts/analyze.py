@@ -302,8 +302,20 @@ def latex_main_table(results, budget, path, caption, label):
     path.write_text("\n".join(lines) + "\n")
 
 
+def mib(text):
+    """An nvidia-smi memory field as an int, or None where it printed [N/A] (Windows WDDM)."""
+    try:
+        return int(text.strip())
+    except ValueError:
+        return None
+
+
 def gpu_by_run():
-    """Peak GPU memory per run, from the sampler's clock times and the queue's start/done lines."""
+    """Peak GPU memory per run, from the sampler's clock times and the queue's start/done lines.
+
+    A field nvidia-smi could not read is left out: total_mib or process_mib stays None for a run
+    whose samples never carried a number.
+    """
     log, samples = Path("outputs/progress.log"), Path("outputs/gpu.csv")
     if not log.exists() or not samples.exists():
         return {}
@@ -330,16 +342,19 @@ def gpu_by_run():
         if len(fields) < 4:
             continue
         when = clock(fields[0], state)
-        ours = sum(
-            int(app.rsplit(",", 1)[1])
+        total = mib(fields[1])
+        per_process = [
+            mib(app.rsplit(",", 1)[1])
             for app in fields[3].split(";")
             if "enpm703" not in app and app.count(",") == 2
-        )
+        ]
+        ours = sum(per_process) if None not in per_process else None
         for name, (start, stop) in spans.items():
             if start <= when <= stop:
-                peak = peaks.setdefault(name, {"total_mib": 0, "process_mib": 0})
-                peak["total_mib"] = max(peak["total_mib"], int(fields[1]))
-                peak["process_mib"] = max(peak["process_mib"], ours)
+                peak = peaks.setdefault(name, {"total_mib": None, "process_mib": None})
+                for key, value in (("total_mib", total), ("process_mib", ours)):
+                    if value is not None:
+                        peak[key] = max(peak[key] or 0, value)
     return peaks
 
 
@@ -493,8 +508,9 @@ def main():
     gpu = Path("outputs/gpu.csv")
     if gpu.exists():
         used = [
-            int(line.split(",")[1]) for line in gpu.read_text().splitlines() if line.count(",") >= 2
+            mib(line.split(",")[1]) for line in gpu.read_text().splitlines() if line.count(",") >= 2
         ]
+        used = [u for u in used if u is not None]
         report["gpu_total_used_mib_peak"] = max(used) if used else None
     report["gpu_by_run"] = gpu_by_run()
     report["status"]["budgets_done_500"] = budgets_done
