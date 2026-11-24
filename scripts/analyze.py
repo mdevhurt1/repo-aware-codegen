@@ -30,7 +30,13 @@ LABEL = {
     "oracle": "Gold only (variant)",
     "signatures": "Signature map",
 }
-
+# shared model context methods (signatures TBD)
+MODEL_METHODS = [
+    "bm25_long",
+    "bm25_short",
+    "signatures",
+    "oracle_long",
+]
 
 def read_rows(pattern):
     rows = []
@@ -48,6 +54,14 @@ def index(rows):
         table[row["method"], row["budget"]][row["example_id"]] = row
     return table
 
+def get_baseline(table, ids, budgets=BUDGETS):
+    """Return the first complete no-context cell."""
+    for budget in budgets:
+        cell = table.get(("none", budget))
+        if cell and all(i in cell for i in ids):
+            return cell
+
+    raise ValueError("No complete no-context baseline found")
 
 def bootstrap_mean(values, n_boot=10_000, seed=0):
     values = np.asarray(values, dtype=float)
@@ -374,6 +388,171 @@ def latex_sweep_table(results, path, caption, label):
     path.write_text("\n".join(lines) + "\n")
 
 
+def latex_model_table(small, large, budget, path, caption, label):
+    lines = [
+        r"\begin{table*}[t]",
+        r"\begin{center}",
+        r"\small",
+        r"\begin{tabular}{llcccc}",
+        r"\hline",
+        r"Method & Model & EM (\%) & ES & "
+        r"$\Delta$ES (95\% CI) & Time (s) \\",
+        r"\hline",
+    ]
+
+    methods = ["none"] + [
+        m for m in MODEL_METHODS
+        if m in small.get(budget, {})
+        and m in large.get(budget, {})
+    ]
+
+    for method in methods:
+        for model, sweep_data in (
+            ("1.3B", small),
+            ("5.7B", large),
+        ):
+            cell = (
+                sweep_data["none"]
+                if method == "none"
+                else sweep_data[budget][method]
+            )
+
+            delta = "--"
+
+            if method != "none":
+                d = cell["es_vs_none"]
+                delta = (
+                    f"{d[0]:+.2f} "
+                    f"[{d[1]:+.2f}, {d[2]:+.2f}]"
+                )
+
+            lines.append(
+                f"{LABEL[method]} & {model} & "
+                f"{cell['em_pct'][0]:.1f} "
+                f"[{cell['em_pct'][1]:.1f}, "
+                f"{cell['em_pct'][2]:.1f}] & "
+                f"{cell['es'][0]:.1f} "
+                f"[{cell['es'][1]:.1f}, "
+                f"{cell['es'][2]:.1f}] & "
+                f"{delta} & "
+                f"{cell['median_seconds']:.2f} \\\\"
+            )
+
+        lines.append(r"\hline")
+
+    lines += [
+        r"\end{tabular}",
+        r"\end{center}",
+        rf"\caption{{{caption}}}",
+        rf"\label{{{label}}}",
+        r"\end{table*}",
+    ]
+
+    path.write_text("\n".join(lines) + "\n")
+
+
+def compare_context_gains(small, large, ids):
+    """Compare paired context gains between model sizes.
+
+    Positive gain_diff means the larger model benefits more
+    from repository context.
+    """
+    small_none = get_baseline(small, ids)
+    large_none = get_baseline(large, ids)
+
+    results = []
+
+    for budget in BUDGETS:
+        for method in MODEL_METHODS:
+            small_cell = small.get((method, budget))
+            large_cell = large.get((method, budget))
+
+            if not small_cell or not large_cell:
+                continue
+
+            if not all(
+                i in small_cell and i in large_cell
+                for i in ids
+            ):
+                continue
+
+            small_gains = np.array([
+                small_cell[i]["es"] - small_none[i]["es"]
+                for i in ids
+            ])
+
+            large_gains = np.array([
+                large_cell[i]["es"] - large_none[i]["es"]
+                for i in ids
+            ])
+
+            results.append({
+                "method": method,
+                "budget": budget,
+                "n": len(ids),
+                "gain_1p3b": bootstrap_mean(small_gains),
+                "gain_5p7b": bootstrap_mean(large_gains),
+                "gain_diff": bootstrap_mean(
+                    large_gains - small_gains
+                ),
+            })
+
+    return results
+
+
+def write_model_comparison(report, path):
+    small = report["sweep_500"]
+    large = report["sweep_large_500"]
+    rows = []
+
+    for comparison in report["context_gain_comparison"]:
+        method = comparison["method"]
+        budget = comparison["budget"]
+
+        s = small[budget][method]
+        l = large[budget][method]
+
+        rows.append([
+            method,
+            budget,
+            comparison["n"],
+            s["es"][0],
+            l["es"][0],
+            *comparison["gain_1p3b"],
+            *comparison["gain_5p7b"],
+            *comparison["gain_diff"],
+            s["em_pct"][0],
+            l["em_pct"][0],
+            s["median_seconds"],
+            l["median_seconds"],
+            l["median_seconds"] / s["median_seconds"],
+        ])
+
+    header = [
+        "method",
+        "budget",
+        "n",
+        "es_1p3b",
+        "es_5p7b",
+        "gain_1p3b",
+        "gain_1p3b_low",
+        "gain_1p3b_high",
+        "gain_5p7b",
+        "gain_5p7b_low",
+        "gain_5p7b_high",
+        "gain_diff",
+        "gain_diff_low",
+        "gain_diff_high",
+        "em_1p3b",
+        "em_5p7b",
+        "median_seconds_1p3b",
+        "median_seconds_5p7b",
+        "generation_time_ratio",
+    ]
+
+    write_csv(path, header, rows)
+
+
 def main():
     from rac.data.repobench import load_examples
 
@@ -462,7 +641,9 @@ def main():
         cross = []
         for (method, budget), cell in large.items():
             small = core.get((method, budget))
-            if small:
+            if small and all(
+                i in cell and i in small for i in ids_500
+            ):
                 es = paired_bootstrap_es(
                     [cell[i]["es"] for i in ids_500], [small[i]["es"] for i in ids_500]
                 )
@@ -481,14 +662,25 @@ def main():
             large,
             ids_500,
             [
-                c
+                ((a, b), (c, b))
                 for b in BUDGETS
-                for c in (
-                    (("bm25_long", b), ("bm25_short", b)),
-                    (("oracle_long", b), ("bm25_long", b)),
+                for a, c in (
+                    ("bm25_long", "bm25_short"),
+                    ("bm25_long", "signatures"),
+                    ("bm25_short", "signatures"),
+                    ("oracle_long", "bm25_long"),
+                    ("oracle_long", "bm25_short"),
+                    ("oracle_long", "signatures"),
                 )
             ],
         )
+        report["context_gain_comparison"] = compare_context_gains(
+            core, large, ids_500
+        )
+        report["status"]["budgets_done_large_500"] = [
+            b for b in BUDGETS
+            if b in report["sweep_large_500"]
+        ]
 
     gpu = Path("outputs/gpu.csv")
     if gpu.exists():
@@ -621,6 +813,25 @@ def main():
             r"Paired $\Delta$ES against no context by budget $N$ with DeepSeek-Coder-5.7B "
             r"(500 examples).",
             "tab:sweep5p7",
+        )
+        write_model_comparison(
+            report,
+            OUT / "tables" / "model_comparison.csv",
+        )
+    if (
+        512 in report["sweep_500"]
+        and 512 in report.get("sweep_large_500", {})
+    ):
+        latex_model_table(
+            report["sweep_500"],
+            report["sweep_large_500"],
+            512,
+            OUT / "tables" / "table_model_comparison.tex",
+            r"Model comparison at budget $N=512$ on the frozen sample of 500 "
+            r"\texttt{cross\_file\_first} examples with DeepSeek-Coder-1.3B and "
+            r"DeepSeek-Coder-5.7B. $\Delta$ES is paired against each model's "
+            r"own no-context baseline. Time is median generation time per example.",
+            "tab:model_comparison"
         )
     print("budgets done:", budgets_done, "runs:", report["status"]["runs_complete"])
 
