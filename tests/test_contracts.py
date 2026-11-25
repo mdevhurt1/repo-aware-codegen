@@ -17,7 +17,9 @@ def test_fixture_parses_into_examples(examples):
 
 
 def test_milestone1_methods_registered():
-    assert {"none", "bm25_long", "bm25_short", "oracle"} <= set(context.METHODS)
+    assert {
+        "none", "bm25_long", "bm25_short", "oracle", "oracle_long", "oracle_short"
+    } <= set(context.METHODS)
 
 
 def test_none_returns_empty(examples, tokenizer):

@@ -5,7 +5,7 @@ import pytest
 from rac.context import build_context
 
 BUDGETS = (256, 512, 1024, 2048, 4096)
-METHODS = ("none", "bm25_long", "bm25_short", "oracle")
+METHODS = ("none", "bm25_long", "bm25_short", "oracle", "oracle_long", "oracle_short")
 
 
 @pytest.mark.parametrize("budget", BUDGETS)

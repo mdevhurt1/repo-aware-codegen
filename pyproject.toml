@@ -25,6 +25,7 @@ dependencies = [
 gpu = ["bitsandbytes"]
 sig = ["tree-sitter", "tree-sitter-python"]
 selector = ["scikit-learn"]
+report = ["matplotlib"]  # scripts/figures.py
 dev = ["pytest", "ruff"]
 
 [project.scripts]
