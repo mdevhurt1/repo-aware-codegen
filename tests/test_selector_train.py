@@ -5,9 +5,11 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
-from rac.selector.dataset import ARMS
-from rac.selector.models import class_probabilities, fit_model, log_scores
-from rac.selector.train import train
+pytest.importorskip("sklearn", reason="requires the optional selector extra")
+
+from rac.selector.dataset import ARMS  # noqa: E402
+from rac.selector.models import class_probabilities, fit_model, log_scores  # noqa: E402
+from rac.selector.train import train  # noqa: E402
 
 SMALL_GRIDS = {
     "lr": [{"C": 1.0, "class_weight": None}],

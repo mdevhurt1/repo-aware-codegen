@@ -114,9 +114,10 @@ def test_ties_prefer_smallest_budget_then_actual_cost(tmp_path):
     assert dataset["rows"][0]["label"] == "signatures:256"
 
 
-def test_oracle_is_not_a_selectable_arm(tmp_path):
+@pytest.mark.parametrize("method", ["oracle", "oracle_long", "oracle_short"])
+def test_oracle_is_not_a_selectable_arm(tmp_path, method):
     path, repositories, rows = make_runs(tmp_path)
-    rows.append(dict(rows[0], method="oracle", es=100))
+    rows.append(dict(rows[0], method=method, es=100))
     write_rows(path, rows)
 
     dataset = assemble([path], repositories)
@@ -130,4 +131,13 @@ def test_requires_at_least_five_repositories(tmp_path):
     repositories = dict.fromkeys(repositories, "same/repository")
 
     with pytest.raises(ValueError, match="at least five repositories"):
+        assemble([path], repositories)
+
+
+def test_unknown_method_is_rejected(tmp_path):
+    path, repositories, rows = make_runs(tmp_path)
+    rows.append(dict(rows[0], method="unknown_method"))
+    write_rows(path, rows)
+
+    with pytest.raises(ValueError, match="unsupported arm"):
         assemble([path], repositories)

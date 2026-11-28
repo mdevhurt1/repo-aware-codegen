@@ -4,8 +4,10 @@ import json
 
 import pytest
 
-from rac.selector.cache import write_family
-from rac.selector.signal_report import generate_report, latex_table
+pytest.importorskip("sklearn", reason="requires the optional selector extra")
+
+from rac.selector.cache import write_family  # noqa: E402
+from rac.selector.signal_report import generate_report, latex_table  # noqa: E402
 
 
 def make_dataset():

@@ -5,8 +5,10 @@ import json
 import numpy as np
 import pytest
 
-from rac.selector import train_command
-from rac.selector.cache import write_family
+pytest.importorskip("sklearn", reason="requires the optional selector extra")
+
+from rac.selector import train_command  # noqa: E402
+from rac.selector.cache import write_family  # noqa: E402
 
 
 def prepare_inputs(tmp_path):

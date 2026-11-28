@@ -4,9 +4,11 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from sklearn.preprocessing import StandardScaler
 
-from rac.selector import signal
+pytest.importorskip("sklearn", reason="requires the optional selector extra")
+from sklearn.preprocessing import StandardScaler  # noqa: E402
+
+from rac.selector import signal  # noqa: E402
 
 
 @pytest.fixture
