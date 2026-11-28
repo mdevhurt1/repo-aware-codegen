@@ -40,7 +40,7 @@ def assemble(
                 try:
                     row = json.loads(line)
                     method = row["method"]
-                    if method == "oracle":
+                    if method in {"oracle", "oracle_long", "oracle_short"}:
                         continue
 
                     budget = row["budget"]
